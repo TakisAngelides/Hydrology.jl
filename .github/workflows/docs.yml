@@ -14,19 +14,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: julia-actions/setup-julia@v2
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v2
         with:
           version: '1'
 
-      - name: Install docs dependencies
-        run: |
-          julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+      - name: Cache Julia artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/packages
+          key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-julia-
 
-      - name: Build and deploy docs
+      - name: Instantiate docs environment
+        run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Build and deploy documentation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: julia --project=docs -e '
-          include("docs/make.jl")
-        '
+        run: julia --project=docs -e 'include("docs/make.jl")'
