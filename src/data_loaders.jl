@@ -17,7 +17,7 @@ and return the processed fields needed for the simulation.
 - `A`: viscocity parameter in Glen's flow law.
 - `ṁ_over_ρ_w`: basal melt rate divided by water density (kg m⁻² s⁻¹).
 """
-function load_kazmierczak2024(path::String)
+function load_Kazmierczak2024(path::String)
     data = matread(path)
     Nx, Ny = size(data["H"])
     mask = data["MASKo"]
