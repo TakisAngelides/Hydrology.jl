@@ -14,7 +14,7 @@ bib = CitationBibliography(
     style=:authoryear
 )
 
-Literate.markdown("src/examples/Kazmierczak2024.jl", "src/examples"; credit = false)
+Literate.markdown("docs/src/examples/Kazmierczak2024.jl", "src/examples"; credit = false)
 
 example_pages = [
     "examples/Kazmierczak2024.md",
