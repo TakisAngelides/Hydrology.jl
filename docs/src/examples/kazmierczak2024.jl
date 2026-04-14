@@ -1,7 +1,7 @@
 using Hydrology
 
 float_type = Float64
-path = "src/input/THWAITES2km_m3_HAB_toto.mat"
+path = "/Users/taange001/Documents/Coding/Hydrology.jl/src/input/THWAITES2km_m3_HAB_toto.mat"
 data_loading_function = load_kazmierczak2024
 c = PhysicalConstants{float_type}()
 HM = HydrologyModel(path, data_loading_function, c)
