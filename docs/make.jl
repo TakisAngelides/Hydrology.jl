@@ -51,4 +51,5 @@ makedocs(
 
 deploydocs(
     repo = "github.com/TakisAngelides/Hydrology.jl",
+    devbranch = "main"
 )
