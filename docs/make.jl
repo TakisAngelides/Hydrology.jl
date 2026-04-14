@@ -41,7 +41,7 @@ makedocs(
         ),
     sitename = "Hydrology.jl",
     authors = "Takis Angelides",
-    # pages = PAGES,
+    pages = PAGES,
     doctest = CI,
     draft = false,
     plugins = [bib],
