@@ -26,7 +26,7 @@ export PhysicalConstants
 export compute_lims, perYear2perSecond, Km2m
 
 # data_loaders.jl
-export load_kazmierczak2024
+export load_Kazmierczak2024
 
 # initialize.jl
 export HydrologyModel, initialize_grid, initialize_fields, set_initial_fields!, initialize_κ!
