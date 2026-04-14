@@ -11,3 +11,5 @@ update_N!(HM)
 
 visualize_field(HM.fields, :q)
 visualize_field(HM.fields, :N)
+
+println("Finished.")

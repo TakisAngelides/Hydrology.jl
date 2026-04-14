@@ -1,5 +1,4 @@
 # Standard stuff
-cd(@__DIR__)
 CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
 using CairoMakie, Documenter, Literate
 using DocumenterTools: Themes
@@ -14,13 +13,17 @@ bib = CitationBibliography(
     style=:authoryear
 )
 
-Literate.markdown("docs/src/examples/Kazmierczak2024.jl", "src/examples"; credit = false)
+Literate.markdown(
+    joinpath(@__DIR__, "src", "examples", "Kazmierczak2024.jl"),
+    joinpath(@__DIR__, "src", "examples");
+    credit = false
+)
 
 example_pages = [
     "examples/Kazmierczak2024.md",
 ]
-
 ref_pages = ["references.md"]
+
 # %% Build docs
 PAGES = [
     "index.md",
@@ -28,7 +31,7 @@ PAGES = [
     "References" => ref_pages,
 ]
 
-include("style.jl")
+include(joinpath(@__DIR__, "style.jl"))
 
 makedocs(
     modules = [Hydrology],
@@ -38,7 +41,7 @@ makedocs(
             asset("https://fonts.googleapis.com/css?family=Montserrat|Source+Code+Pro&display=swap", class=:css),
         ],
         collapselevel = 2,
-        ),
+    ),
     sitename = "Hydrology.jl",
     authors = "Takis Angelides",
     pages = PAGES,
