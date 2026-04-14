@@ -14,20 +14,19 @@ bib = CitationBibliography(
     style=:authoryear
 )
 
-# Literate.markdown("src/examples/benchmark_analytic.jl", "src/examples"; credit = false)
+Literate.markdown("src/examples/Kazmierczak2024.jl", "src/examples"; credit = false)
 
-# example_pages = [
-#     "examples/benchmark_analytic.md",
-# ]
+example_pages = [
+    "examples/Kazmierczak2024.md",
+]
 
-# ref_pages = ["API_public.md", "API_private.md", "fortran.md", "references.md"]
-# # %% Build docs
-# PAGES = [
-#     "index.md",
-#     "introGIA.md",
-#     "Examples" => example_pages,
-#     "References" => ref_pages,
-# ]
+ref_pages = ["references.md"]
+# %% Build docs
+PAGES = [
+    "index.md",
+    "Examples" => example_pages,
+    "References" => ref_pages,
+]
 
 include("style.jl")
 
@@ -50,6 +49,7 @@ makedocs(
     warnonly = true,
 )
 
-deploydocs(;
-    repo="github.com/TakisAngelides/Hydrology.jl",
+deploydocs(
+    repo = "github.com/TakisAngelides/Hydrology.jl",
+    devbranch = "main",
 )
