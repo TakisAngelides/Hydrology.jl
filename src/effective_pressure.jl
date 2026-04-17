@@ -1,3 +1,8 @@
+##########################
+# Kazmierczak et al 2024 #
+##########################
+
+
 """
 $(TYPEDSIGNATURES)
 Update the effective pressure `N` across the grid using a complementary error function 
@@ -14,6 +19,7 @@ function update_N!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::H
     return nothing
 end
 
+
 """
 $(TYPEDSIGNATURES)
 Update the hydrostatic ice overburden pressure `Po` based on ice thickness `h`.
@@ -23,6 +29,7 @@ function update_Po!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::
     fill_halo!(model.Po, grid)
     return nothing
 end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -37,6 +44,7 @@ function update_H!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::H
     return nothing
 end
 
+
 """
 $(TYPEDSIGNATURES)
 Update the far-field conduit cross-sectional area `S_inf` using the Manning or 
@@ -47,6 +55,7 @@ function update_S_inf!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, stat
     fill_halo!(model.S_inf, grid)
     return nothing
 end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -62,6 +71,7 @@ function update_N_inf!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, stat
     fill_halo!(model.N_inf, grid)
     return nothing
 end
+
 
 """
 $(TYPEDSIGNATURES)

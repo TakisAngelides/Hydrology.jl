@@ -116,12 +116,9 @@ end
 """
 $(TYPEDSIGNATURES)
 
-
+Update the smoothed geometric potentials to incorporate the effects of the stress-gradient coupling.
 """
 function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
-
-    # TODO: with regards to the need for smoothing: we say that the water routing follows ∇ϕ, so how can we see that what we are saying 
-    # is mathematically inadequate and need to incorporate the horizontal changes in ∇ϕ?
 
     # The water flux at a given point is influenced by variations in ice thickness some distance away. To account for this we perform a convolution of the gradient of the potential
     # such that the influence of nearby points is now incorporated into the value of the gradient of the potential at that point.
