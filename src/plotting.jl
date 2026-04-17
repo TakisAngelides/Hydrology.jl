@@ -1,9 +1,11 @@
 """
 $(TYPEDSIGNATURES)
 
-Visualize the Oceananigans grid.
+Visualize the Oceananigans Rectilinear grid.
 """
-function visualize_grid(grid)
+function visualize_grid(grid::OGRectHydroGrid)
+
+    grid = grid.grid
 
     xc = xnodes(grid, Center())
     yc = ynodes(grid, Center())
@@ -21,7 +23,7 @@ function visualize_grid(grid)
         (Nx-5:Nx, 1:5)   # bottom-right
     ]
 
-    titles = ["top left", "top right", "bottom left", "bottom right"]
+    titles = ["top left grid corner", "top right grid corner", "bottom left grid corner", "bottom right grid corner"]
 
     fig = Figure(size=(800,800))
     
@@ -47,32 +49,22 @@ function visualize_grid(grid)
     display(fig)
 end
 
+
 """
 $(TYPEDSIGNATURES)
 
-Visualize an Oceananigans field.
+Visualize a field.
 """
-function visualize_field(fields, field_symbol; plot_title = "")
-
-    field = getproperty(fields, field_symbol)
-
-    data = interior(field)[:, :, 1]
-
-    x, y = nodes(field)
+function visualize_field(x, y, data, mask; plot_title = "")
 
     fig = Figure(size = (900, 700))
-    plot_title = isempty(plot_title) ? string(field_symbol) : plot_title
-    ax = Axis(fig[1, 1],
-              xlabel = "x",
-              ylabel = "y",
-              title = plot_title,
-              aspect = DataAspect())
+    ax = Axis(fig[1, 1], xlabel = "x", ylabel = "y", title = plot_title, aspect = DataAspect())
 
-    data[fields.mask .!= 1] .= NaN
+    data[mask .!= 1] .= NaN
 
-    if field_symbol == :q
+    if plot_title == "q"
         hm = heatmap!(ax, perSecond2perYear.(data') ./ 1e4; colormap = Reverse(:RdBu), colorrange = (0, 10)) # for q [m² s⁻¹]
-    elseif field_symbol == :N
+    elseif plot_title == "N"
         hm = heatmap!(ax, data' .* 1e-6; colormap = Reverse(:RdBu), colorrange = (0, 10)) # for N [MPa]
     else 
         hm = heatmap!(ax, x, y, data')
@@ -83,4 +75,18 @@ function visualize_field(fields, field_symbol; plot_title = "")
     display(fig)
 
     return fig
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Visualize an Oceananigans field.
+"""
+function visualize_field(field::Oceananigans.Field, mask; kwargs...)
+
+    data = interior(field)[:, :, 1]
+    x, y = nodes(field)
+    visualize_field(x, y, data, mask; kwargs...)
+    
 end

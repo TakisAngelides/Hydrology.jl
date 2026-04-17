@@ -11,31 +11,43 @@ using Base.Threads
 using SpecialFunctions
 using DocStringExtensions
 
-include("constants.jl")
-include("utilities.jl")
-include("data_loaders.jl")
-include("initialize.jl")
+include("grid.jl")
+include("model.jl")
+include("state.jl")
+include("simulation.jl")
+include("run.jl")
 include("water_flux.jl")
 include("effective_pressure.jl")
+include("data_loaders.jl")
+include("utilities.jl")
 include("plotting.jl")
 
-# constants.jl
-export PhysicalConstants
+# grid.jl
+export AbstractHydroGrid, OGRectHydroGrid
 
-# utilities.jl
-export compute_lims, perYear2perSecond, Km2m
+# model.jl
+export AbstractHydroModel, KazmierczakHydroModel
 
-# data_loaders.jl
-export load_Kazmierczak2024
+# state.jl
+export AbstractHydroState, HydroState
 
-# initialize.jl
-export HydrologyModel, initialize_grid, initialize_fields, set_initial_fields!, initialize_κ!
+# simulations.jl
+export AbstractSimulation, TimeSimulation, SteadyStateSimulation
+
+# run.jl
+export run!, update_steady_state!
 
 # water_flux.jl
-export update_q!, update_ϕ₀!, potential_filling!, update_potential_gradients!, update_smoothed_potential_gradients!, accumulate_ψ_out!, update_ψ_out!
+export update_q!, fill_halo!, update_ϕ₀!, potential_filling!, update_potential_gradients!, update_smoothed_potential_gradients!, accumulate_ψ_out!, update_ψ_out!
 
 # effective_pressure.jl
 export update_N!, update_Po!, update_H!, update_S_inf!, update_N_inf!, update_Q!
+
+# data_loaders
+export load_Kazmierczak
+
+# utilities.jl
+export compute_lims, perYear2perSecond, perSecond2perYear, Km2m
 
 # plotting.jl
 export visualize_grid, visualize_field
