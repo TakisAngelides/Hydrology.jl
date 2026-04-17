@@ -31,7 +31,7 @@ function visualize_grid(grid::OGRectHydroGrid)
     
     for (idx, (xi, yi)) in enumerate(quadrants)
 
-        ax = Axis(fig[div(idx-1,2)+1, mod(idx-1,2)+1]; xlabel="x", ylabel="y", title=titles[idx])
+        ax = Axis(fig[div(idx-1,2)+1, mod(idx-1,2)+1]; xlabel="x", ylabel="y", title=titles[idx], xticklabelsize=10, yticklabelsize=10, xgridvisible = false, ygridvisible = false)
 
         # scatter centers
         scatter!(ax,repeat(xc[xi], inner=length(yc[yi])), repeat(yc[yi], outer=length(xc[xi])), color=:blue, markersize=4)
@@ -46,7 +46,8 @@ function visualize_grid(grid::OGRectHydroGrid)
         end
     end
 
-    display(fig)
+    return fig
+
 end
 
 
@@ -71,8 +72,6 @@ function visualize_field(x, y, data, mask; plot_title = "")
     end
 
     Colorbar(fig[1, 2], hm)
-
-    display(fig)
 
     return fig
 end

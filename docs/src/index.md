@@ -1,4 +1,3 @@
 # Hydrology.jl
 
-```@meta
-CurrentModule = Hydrology
+This is a package for the hydrology of ice sheets.

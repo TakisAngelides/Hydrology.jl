@@ -22,6 +22,7 @@ Literate.markdown(
 example_pages = [
     "examples/Kazmierczak2024.md",
 ]
+
 ref_pages = ["references.md"]
 
 # %% Build docs

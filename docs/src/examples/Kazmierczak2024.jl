@@ -1,33 +1,44 @@
+#=
+# [Kazmierczak et al 2024](@id Kazmierczak2024)
+This is an example of how to run the Hydrology.jl package for the steady state problem of Kazmierczak et al 2024.
+=#
 using Hydrology
 
-# Type of the physical fields
-T = Float64 
+# How to load data from a file to get the necessary inputs to initialize the grid, model and state for the Kazmierczak et al 2024 model.
 
-# Path to data; run the file from the repository Hydrology.jl path
-path = "$(@__DIR__)/input/Kazmierczak2024/THWAITES2km_m3_HAB_toto.mat"
-
-# Function to load the data
-data_loading_function = load_Kazmierczak
-
-# Load the data as they are saved from the repository of Kazmierczak et al 2024 for Fig. S3
+T = Float64 # Type of the physical fields
+path = "$(@__DIR__)/input/Kazmierczak2024/THWAITES2km_m3_HAB_toto.mat" # Path to data for Fig. S3 of Kazmierczak et al 2024 which focuses on Thwaites glacier.
+data_loading_function = load_Kazmierczak # Function to load the data.
 Nx, Ny, xlims, ylims, mask, h, b, abs_v_b, A_visc, ṁ_over_ρ_w, κ = load_Kazmierczak(path)
 
-# Build the grid as an Oceananigans rectilinear grid
+# Here we prepare a grid using the Oceananigans rectilinear grid.
+
 grid = OGRectHydroGrid(Nx, Ny, xlims, ylims; T = T)
 
-# Build the model of Kazmierczak et al 2024
-model = KazmierczakHydroModel(grid, κ, abs_v_b, A_visc)
+# There is a function to visualize the Oceananigans rectilinear grid.
 
-# Build the hydrology state that is common to all hydrology models
-state = HydroState(grid, mask, h, b, ṁ_over_ρ_w*model.ρ_w)
+fig = visualize_grid(grid) 
 
-# Create a Simulation struct for Kazmierczak 2024 et al which is a steady state calculation
-sim = SteadyStateSimulation(model, grid, state)
+# We then build the model using the data from the input file above. The model will hold its model-specific fields, with the rest of the fields common to all models stored in the HydroState below.
 
-# Run the simulation
+model = KazmierczakHydroModel(grid, κ, abs_v_b, A_visc);
+
+# Further, we build the hydrology state using some of the data from the input file. This state will store the fields common to all hydrology models.
+
+state = HydroState(grid, mask, h, b, ṁ_over_ρ_w*model.ρ_w);
+
+# Finally we can create a simulation struct. Since the Kazmierczak et al 2024 model is a steady state problem we create a SteadyStateSimulation rather than a TimeSimulation.
+
+sim = SteadyStateSimulation(model, grid, state);
+
+# We can now run the simulation which will update the hydrology state, as well as the model-dependent fields defined in the model.
+
 run!(sim)
 
-visualize_field(model.q, state.mask; plot_title = "q")
-visualize_field(state.N, state.mask; plot_title = "N")
+# Now we can visualize the resulting water flux q [m² s⁻¹].
 
-println("Finished.")
+fig_q = visualize_field(model.q, state.mask; plot_title = "q")
+
+# And the effective pressure N [MPa].
+
+fig_N = visualize_field(state.N, state.mask; plot_title = "N")
