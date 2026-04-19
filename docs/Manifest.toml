@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.6"
+julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "a1eeabb1bfffce5eb3b90acd985fcf7a2b281d78"
+project_hash = "d54c6de0a4ac842e991b4da75682e710072abde4"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -59,9 +59,9 @@ version = "1.1.2"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra"]
-git-tree-sha1 = "78b3a7a536b4b0a747a0f296ea77091ca0a9f9a3"
+git-tree-sha1 = "54f895554d05c83e3dd59f6a396671dae8999573"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.23.0"
+version = "7.24.0"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceAMDGPUExt = "AMDGPU"
@@ -143,10 +143,10 @@ uuid = "18cc8868-cbac-4acf-b575-c8ff214dc66f"
 version = "1.3.2"
 
 [[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "6876e30dc02dc69f0613cb6ece242144f2ca9e56"
+deps = ["Compat", "JSON", "Logging", "PrecompileTools", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "9670d3febc2b6da60a0ae57846ba74670290653f"
 uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.7.0"
+version = "1.8.0"
 
 [[deps.BibInternal]]
 deps = ["TestItems"]
@@ -541,6 +541,12 @@ git-tree-sha1 = "6d6219a004b8cf1e0b4dbe27a2860b8e04eba0be"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
 version = "3.3.11+0"
 
+[[deps.FastHydrology]]
+deps = ["BenchmarkTools", "CairoMakie", "DocStringExtensions", "Documenter", "DocumenterCitations", "DocumenterTools", "ImageFiltering", "Literate", "MAT", "Oceananigans", "OffsetArrays", "SpecialFunctions"]
+path = ".."
+uuid = "91547ff3-b885-4d35-ac59-f1ca93abc87d"
+version = "1.0.0-DEV"
+
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "6522cfb3b8fe97bec632252263057996cbd3de20"
@@ -773,12 +779,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "XML2_jll", "Xorg_libpciaccess_jll"
 git-tree-sha1 = "baaaebd42ed9ee1bd9173cfd56910e55a8622ee1"
 uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
 version = "2.13.0+1"
-
-[[deps.Hydrology]]
-deps = ["BenchmarkTools", "CairoMakie", "DocStringExtensions", "Documenter", "DocumenterTools", "ImageFiltering", "MAT", "Oceananigans", "OffsetArrays", "SpecialFunctions"]
-path = ".."
-uuid = "91547ff3-b885-4d35-ac59-f1ca93abc87d"
-version = "1.0.0-DEV"
 
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
@@ -1203,9 +1203,9 @@ version = "2025.2.0+0"
 
 [[deps.MPI]]
 deps = ["Distributed", "DocStringExtensions", "Libdl", "MPIABI_jll", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "PkgVersion", "PrecompileTools", "Serialization", "Sockets"]
-git-tree-sha1 = "8b2ef31ed24b32750dae879aa66393f4868e8ef1"
+git-tree-sha1 = "ff6309186ff377782d01f6577d19ae1b5f5185c5"
 uuid = "da04e1cc-30fd-572f-bb4f-1f8673147195"
-version = "0.20.25"
+version = "0.20.26"
 
     [deps.MPI.extensions]
     AMDGPUExt = "AMDGPU"
@@ -1217,9 +1217,9 @@ version = "0.20.25"
 
 [[deps.MPIABI_jll]]
 deps = ["Artifacts", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "fdc0f7ca9e7e645d1114b93c9eee98f352b59a0c"
+git-tree-sha1 = "8d684b5918769c4f9423e0ee3bbdefdab82709e8"
 uuid = "b5ada748-db0f-5fc0-8972-9331c762740c"
-version = "0.1.3+0"
+version = "0.1.4+0"
 
 [[deps.MPICH_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "Libdl", "MPIPreferences", "TOML"]
@@ -1235,9 +1235,9 @@ version = "0.1.12"
 
 [[deps.MPItrampoline_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "36c2d142e7d45fb98b5f83925213feb3292ca348"
+git-tree-sha1 = "675df097f8eeb28998b2cfe3b25655af73d5f7df"
 uuid = "f1f71cc9-e9ae-5b93-9b94-4fe0e1ad3748"
-version = "5.5.5+0"
+version = "5.5.6+0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
@@ -1344,9 +1344,9 @@ version = "0.5.5"
 
 [[deps.Oceananigans]]
 deps = ["Adapt", "Crayons", "CubedSphere", "Dates", "Distances", "DocStringExtensions", "FFTW", "GPUArraysCore", "Glob", "InteractiveUtils", "JLD2", "KernelAbstractions", "Krylov", "LinearAlgebra", "Logging", "MPI", "MuladdMacro", "OffsetArrays", "OrderedCollections", "Pkg", "Printf", "ReactantCore", "Rotations", "SeawaterPolynomials", "SparseArrays", "StaticArrays", "Statistics", "StructArrays"]
-git-tree-sha1 = "3159d939a65cc40b38c011179b773cf00b30d39c"
+git-tree-sha1 = "cda79e6d7ed7de61316a314494ea93202345315b"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
-version = "0.106.5"
+version = "0.106.6"
 
     [deps.Oceananigans.extensions]
     OceananigansAMDGPUExt = ["AMDGPU", "AbstractFFTs"]
@@ -1418,9 +1418,9 @@ version = "0.8.7+0"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
-git-tree-sha1 = "2f3d05e419b6125ffe06e55784102e99325bdbe2"
+git-tree-sha1 = "6d6c0ca4824268c1a7dca1f4721c535ac63d9074"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "5.0.10+0"
+version = "5.0.11+0"
 
 [[deps.OpenSSH_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "OpenSSL_jll", "Zlib_jll"]
@@ -2291,9 +2291,9 @@ version = "1.6.0+0"
 
 [[deps.mpif_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIABI_jll", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "TOML"]
-git-tree-sha1 = "653ea50df05f4df3913bc3c51f895127ae391b03"
+git-tree-sha1 = "a8083ee0737c243c8f40a4ba86a0956997facb73"
 uuid = "9aeb927a-4695-514f-a259-621a69f20ec0"
-version = "0.1.5+0"
+version = "0.1.7+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
