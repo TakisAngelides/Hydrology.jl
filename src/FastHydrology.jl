@@ -1,4 +1,4 @@
-module Hydrology
+module FastHydrology
 
 using MAT
 using Oceananigans

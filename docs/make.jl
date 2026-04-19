@@ -6,7 +6,7 @@ using DocumenterCitations
 ENV["JULIA_DEBUG"] = "Documenter"
 
 # Packages specific to these docs
-using Hydrology
+using FastHydrology
 
 bib = CitationBibliography(
     joinpath(@__DIR__, "src", "refs.bib");
@@ -35,7 +35,7 @@ PAGES = [
 include(joinpath(@__DIR__, "style.jl"))
 
 makedocs(
-    modules = [Hydrology],
+    modules = [FastHydrology],
     format = Documenter.HTML(
         prettyurls = CI,
         assets = [
@@ -43,7 +43,7 @@ makedocs(
         ],
         collapselevel = 2,
     ),
-    sitename = "Hydrology.jl",
+    sitename = "FastHydrology.jl",
     authors = "Takis Angelides",
     pages = PAGES,
     doctest = CI,
@@ -54,5 +54,5 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/TakisAngelides/Hydrology.jl",
+    repo = "github.com/TakisAngelides/FastHydrology.jl",
 )
