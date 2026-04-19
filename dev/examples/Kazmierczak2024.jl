@@ -1,8 +1,8 @@
 #=
 # [Kazmierczak et al 2024](@id Kazmierczak2024)
-This is an example of how to run the Hydrology.jl package for the steady state problem of Kazmierczak et al 2024.
+This is an example of how to run the FastHydrology.jl package for the steady state problem of Kazmierczak et al 2024.
 =#
-using Hydrology
+using FastHydrology
 
 # How to load data from a file to get the necessary inputs to initialize the grid, model and state for the Kazmierczak et al 2024 model.
 
