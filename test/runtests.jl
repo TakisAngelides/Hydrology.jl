@@ -1,6 +1,6 @@
-using Hydrology
+using FastHydrology
 using Test
 
-@testset "Hydrology.jl" begin
+@testset "FastHydrology.jl" begin
     # Write your tests here.
 end
