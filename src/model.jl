@@ -2,6 +2,8 @@ abstract type AbstractHydroModel end
 
 mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
 
+    # TODO: add meaning to variables with comments
+
     # Model constants
     ρ_w    ::T
     ρ_i    ::T
@@ -17,6 +19,9 @@ mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroMode
     H_0    ::T
     l_c    ::T
     K      ::T
+    η_w    ::T
+    Wmin  ::T
+    Wmax  ::T
 
     # Geometric potential
     ϕ₀                   ::A
@@ -78,6 +83,9 @@ function KazmierczakHydroModel(
     H_0    = T(0.1)
     l_c    = T(10000.0)
     K      = (T(2)/T(pi))^(T(0.25)) * sqrt((T(pi) + T(2)) / (ρ_w * f))
+    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water
+    Wmin = T(1e-8)  # minimum value for water layer thickness W
+    Wmax = T(0.015) # maximum value for water layer thickness W
     
     # Geometric potential
     ϕ₀                   = set!(CenterField(grid.grid), 0.0)  # Geometric potential [Pa]
@@ -107,7 +115,7 @@ function KazmierczakHydroModel(
     Po      = set!(CenterField(grid.grid), 0.0)          # Ice overburden pressure
     
     return KazmierczakHydroModel(
-        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K,
+        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
         ψ_out, corfac, q,

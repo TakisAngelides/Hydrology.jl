@@ -39,6 +39,10 @@ run!(sim)
 
 fig_q = visualize_field(model.q, state.mask; plot_title = "q")
 
-# And the effective pressure N [MPa].
+# The effective pressure N [MPa].
 
 fig_N = visualize_field(state.N, state.mask; plot_title = "N")
+
+# The water layer thickness W [m]
+
+fig_W = visualize_field(state.W, state.mask; plot_title = "W")

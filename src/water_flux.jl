@@ -31,6 +31,26 @@ function update_q!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::H
     # Limits on q are heuristic and chosen by Frank Pattyn for numerical stability.
     @. model.q.data = min(max(model.ψ_out.data / (model.corfac.data * grid.grid.Δxᶜᵃᵃ), 0), 1e5) # TODO: here we use dx by assuming dx = dy and even grid spacing, should we handle it more generally?
 
+    # Update water layer thickness W stored in the HydroState
+    update_W!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
+
+    return nothing
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Update the water layer thickness W that is part of the HydroState. See Eq. (8) from Kazmierczak et al 2022.
+"""
+function update_W!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
+
+    abs_∇ϕ₀_smoothed_active = @views interior(model.abs_∇ϕ₀_smoothed, :, :, 1)[state.mask .== 1] # TODO: this still allocates memory when we do fields.mask .== 1
+    abs_∇ϕ₀_smoothed_active_mean = mean(abs_∇ϕ₀_smoothed_active)
+    @. state.W.data = min(model.Wmax, max(model.Wmin, (12 * model.η_w * model.q.data / abs_∇ϕ₀_smoothed_active_mean)^(1/3)))
+    fill_halo!(state.W, grid)
+
     return nothing
 
 end
