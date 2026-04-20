@@ -1,10 +1,16 @@
 global SECONDS_PER_YEAR = 60^2 * 24 * 365.25
 global METERS_PER_KILOMETER = 1000
 
+
 """
 $(TYPEDSIGNATURES)
 
 Compute the cell-centered grid limits with half-cell padding from coordinate vectors.
+
+# Arguments
+
+- `xc::AbstractArray`: the x values of the grid cell centers.
+- `yc::AbstractArray`:
 """
 function compute_lims(xc::AbstractArray, yc::AbstractArray)
     dx = xc[2] - xc[1]

@@ -15,7 +15,7 @@ and return the processed fields needed for the simulation.
 - `b`: bed elevation (m).
 - `abs_v_b`: basal velocity magnitude (m/s).
 - `A`: viscocity parameter in Glen's flow law.
-- `ṁ_over_ρ_w`: basal melt rate divided by water density (kg m⁻² s⁻¹).
+- `ṁ_over_ρ_w`: basal melt rate divided by water density (Kg m⁻² s⁻¹).
 """
 function load_Kazmierczak(path::String)
     

@@ -2,10 +2,19 @@
 # Kazmierczak et al 2024 #
 ##########################
 
+
 """
 $(TYPEDSIGNATURES)
 
-Update the water flux q via a recursive algorithm.
+For the Kazmierczak et al 2024 model, update the distributed water flux q [m² s⁻¹] via a recursive algorithm following Le Brocq's code for Le Brocq et al 2006 (https://doi.org/10.1016/j.cageo.2006.05.003).
+First we update the geometric potential that depends on the icethickness h and bedrock elevation b. Then we fill up the local minima of this potential to avoid the 
+issue of water getting stuck. We then update the gradients of the potential in x, y. Further, we smooth these gradients with a convolution in order to incorporate
+the effects of the stress-gradient coupling. For the latter concept, see for example Eq. (8.98) from Cuffey & Patterson 2010 book, Eq. (15) from Kamb et al 1986, 
+Gudmundsson 2002, and references therein. Finally, we calculate the scalar water flux out of each grid cell ψ_out following the aforementioned recursive algorithm from Le Brocq.
+To go from ψ_out to q, we use a correction factor, here called corfac, that can be derived using the definition of ψ_out given by Eq. (R4) of the referee reports of Kazmierczak et al 2024
+(https://egusphere.copernicus.org/preprints/2024/egusphere-2024-466/egusphere-2024-466-AC1-supplement.pdf). Finally, the 0 ≤ q ≤ 1e5 is calculated, with limits set by Frank Pattyn in KORI-ULB
+for numerical stability.
+
 """
 function update_q!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
 
@@ -26,13 +35,10 @@ function update_q!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::H
      
     # This is the factor to go from ψ_out to q. It can be derived using the definition of ψ_out = integral of q ⋅ n with n the outward normal 
     # and the line integral is over the whole sides of the grid cell that water leaves the cell, which can be 1 side for when q points to any of the 4 cardinal neighbours's center or 2 sides.
-    model.corfac .= model.abs_∇ϕ₀_smoothed / sqrt(model.minus_∇ϕ₀_smoothed_x^2 + model.minus_∇ϕ₀_smoothed_y^2) 
+    model.corfac .= model.abs_∇ϕ₀_smoothed * grid.grid.Δxᶜᵃᵃ / sqrt(model.minus_∇ϕ₀_smoothed_x^2 + model.minus_∇ϕ₀_smoothed_y^2)
     
     # Limits on q are heuristic and chosen by Frank Pattyn for numerical stability.
-    @. model.q.data = min(max(model.ψ_out.data / (model.corfac.data * grid.grid.Δxᶜᵃᵃ), 0), 1e5) # TODO: here we use dx by assuming dx = dy and even grid spacing, should we handle it more generally?
-
-    # Update water layer thickness W stored in the HydroState
-    update_W!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
+    @. model.q.data = min(max(model.ψ_out.data / model.corfac.data, 0), 1e5)
 
     return nothing
 
@@ -59,12 +65,10 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Update the geometric potential ϕ₀ and set the values for the halo points.
+Update the geometric potential ϕ₀ and set the values for the halo points (ghost points that handle boundary conditions automatically with Oceananigans).
 """
 function update_ϕ₀!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
     
-    # TODO: for these types of functions should I put a rule that an AbstractHydroState has necessarily h and b as fields or keep it specific to HydroState?
-
     @. model.ϕ₀ = model.ρ_i * model.g * state.h + model.ρ_w * model.g * state.b
     fill_halo!(model.ϕ₀, grid)
 
@@ -136,7 +140,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Update the smoothed geometric potentials to incorporate the effects of the stress-gradient coupling.
+Update the smoothed geometric potentials to incorporate the effects of the stress-gradient coupling. See also the description of the update_q! function.
 """
 function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
 
@@ -150,7 +154,7 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
     # Radius of influence
     scale = h_avg * longcoupwater * 2.0 # represents half the radius of the influence zone of the ice thickness on water
     width = 2.0 * scale # radius of influence, after which the cone ends and the weighting of any points beyond that range is 0
-    Δ = grid.grid.Δxᶜᵃᵃ # here we take that dx = dy, assume even spacing, and use the distance between centers # TODO we assume here dx = dy, should we handle it more generally like taking avg?
+    Δ = grid.grid.Δxᶜᵃᵃ # here we take that dx = dy, assume even spacing, and use the distance between centers
     if width <= Δ
         scale = Δ / 2.0 + 1.0
     end
@@ -179,9 +183,6 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
     # at the boundaries we reflect the array when the kernel is outside, imfilter! allocates quite a bit of memory e.g. see discussion here https://discourse.julialang.org/t/how-to-accelerate-the-imfiter-operation/102965/3
     imfilter!(minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_x, centered(kernel))
     imfilter!(minus_∇ϕ₀_smoothed_y, minus_∇ϕ₀_y, centered(kernel))
-    # TODO: Remove if desired: the two below are my custom function for imfilter which is slower but does not allocate (see comment above)
-    # smooth_potential_gradients!(minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_x, centered(kernel))
-    # smooth_potential_gradients!(minus_∇ϕ₀_smoothed_y, minus_∇ϕ₀_y, centered(kernel))
     
     # Halo used in the accumulate_ψ_out! so we update them according to the BC of the field
     fill_halo!(model.minus_∇ϕ₀_smoothed_x, grid)
@@ -195,36 +196,31 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
 
 end
 
+
 """
 $(TYPEDSIGNATURES)
 
 Helper function to the recursive function to calculate the ψ_out for every grid cell that has grounded ice.
 """
-function accumulate_ψ_out!(model::KazmierczakHydroModel, i, j, grid::OGRectHydroGrid, state::HydroState, w_matrix) # TODO: the w_matrix argument is a test to be removed afterwards
+function accumulate_ψ_out!(model::KazmierczakHydroModel, i, j, grid::OGRectHydroGrid, state::HydroState)
 
-    if model.ψ_out[i, j] ≥ 0.0 # we initialize all unvisited cells with -1.0 and q is positive semi-definite so if its positive then it has been visited and ψ_out calculated # TODO: why is it positive semi-definite if ṁ can go negative?
+    # We initialize all unvisited cells with -1.0 and q is positive semi-definite (see Eq. (R4) mentioned in update_q! function description) so if its positive then it has been visited and ψ_out calculated
+    if model.ψ_out[i, j] ≥ 0.0
         return model.ψ_out[i, j]
     end
 
-    # TODO: make sure that a negative ṁ case (from refreezing of water) can only reduce the ψ_out to 0 and not make it negative which would be an unphysical disappearance of water into its neighbours
-    model.ψ_out[i, j] = state.ṁ[i, j] / model.ρ_w * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ # TODO: this assumes even spacing, if the spacing is not even these will return arrays instead of floats
+    # See Eq. (6) from Le Brocq et al 2009 (https://doi.org/10.3189/002214309790152564) for this udpate on ψ_out. We ensure that ψ_out stays non-negative, because ṁ can get negative.
+    model.ψ_out[i, j] = max(0.0, (state.ṁ[i, j] * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ) / model.ρ_w)
 
     for (di, dj) in ((-1, 0), (1, 0), (0, -1), (0, 1))
 
             ni, nj = i+di, j+dj 
 
-            # The normal unit vector (di, dj) as the outgoing normal vector and since we want w to represent incoming flux into i, j, we then take the dot product of minus_∇ϕ₀ with -(dj, dj).
-            # In principle, we can have 4 mask == 1 neighbours and only 1 downstream neighbour for which case, in principle, the sum of downstream weights should be 1. The most common case when we have 4 mask == 1
-            # neighbours is to have 2 downstream neighbours and again the sum of downstream weights should - in principle - be equal to 1. Given the interpolation of Oceananigans for abs_∇ϕ₀ from minus_∇ϕ₀_x,y and the 
-            # way we decided to calculate the weight in general, the sum of downstream weights is close but not equal to 1. Indeed, once an interpolation is present, it is not equal to 1 for any way of the 3 ways below to calculate the weight.
-            # When there is a neighbour with mask != 1 but the direction of ∇ϕ₀ would have made it a downstream neighbour, then the sum of downstream weights will be less than 1 and there is loss of water flux into the 
-            # sea or to land without grounded ice. Water flux can refreeze and become ice through negative ṁ, but once we lose that water flux this can never happen with that water, so we will have potential ice leakage from the ice flow model 
-            # through the hydrology model. # TODO: discuss this with Alex.
+            # Calculate the fraction of water w coming from the neighbour ni, nj
             w = -(model.minus_∇ϕ₀_smoothed_x[ni, nj]*di + model.minus_∇ϕ₀_smoothed_y[ni, nj]*dj) / model.abs_∇ϕ₀_smoothed[ni, nj]
         
             if w > 0
-                w_matrix[ni, nj] += w # TODO: this is a test to be removed afterwards
-                model.ψ_out[i, j] += accumulate_ψ_out!(model, ni, nj, grid, state, w_matrix) * w
+                model.ψ_out[i, j] += accumulate_ψ_out!(model, ni, nj, grid, state) * w
             end
 
     end
@@ -249,25 +245,13 @@ function update_ψ_out!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, sta
         end
     end
 
-    # TODO: This is a test to be removed afterwards
-    w_matrix = zeros(grid.grid.Nx, grid.grid.Ny)
-
     for j in 1:grid.grid.Ny
         for i in 1:grid.grid.Nx
             if state.mask[i, j] == 1
-                accumulate_ψ_out!(model, i, j, grid, state, w_matrix) # Argument w_matrix is test to be removed afterwards
+                accumulate_ψ_out!(model, i, j, grid, state)
             end
         end
     end
-
-    # TODO: This is a test to be removed afterwards
-    # for j in 1:grid.grid.Ny
-    #     for i in 1:grid.grid.Nx
-    #         if state.mask[i, j] == 1
-    #             println(i, " ", j, " ", w_matrix[i, j])
-    #         end
-    #     end
-    # end
 
     return nothing
 

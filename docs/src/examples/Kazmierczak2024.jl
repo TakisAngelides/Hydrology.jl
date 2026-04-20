@@ -36,13 +36,11 @@ sim = SteadyStateSimulation(model, grid, state);
 run!(sim)
 
 # Now we can visualize the resulting water flux q [m² s⁻¹].
-
 fig_q = visualize_field(model.q, state.mask; plot_title = "q")
-
+display(fig_q)
 # The effective pressure N [MPa].
-
 fig_N = visualize_field(state.N, state.mask; plot_title = "N")
-
+display(fig_N)
 # The water layer thickness W [m]
-
 fig_W = visualize_field(state.W, state.mask; plot_title = "W")
+display(fig_W)

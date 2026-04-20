@@ -1,58 +1,76 @@
+"""
+$(TYPEDSIGNATURES)
+
+An abstract type for the hydrology model to be simulated. The model can hold revelant constants and model-specific fields. 
+"""
 abstract type AbstractHydroModel end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+The hydrology model described in Kazmierczak et al 2024 (https://doi.org/10.5194/tc-18-5887-2024). In our implementation here for
+the calculations of water flux, we make the assumption that on the grid we have Δx = Δy.
+"""
 mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
 
-    # TODO: add meaning to variables with comments
+    # Model constants 
+    ρ_w    ::T  # Density of water [kg/m³]
+    ρ_i    ::T  # Density of ice [kg/m³]
+    g      ::T  # Gravitational acceleration [m/s²]
+    L_w    ::T  # Latent heat of fusion for ice [J/kg]
+    n      ::T  # Glen's flow law exponent (typically 3)
+    h_b    ::T  # Typical bed obstacle height [m]
+    α      ::T  # Power law exponent for hydraulic transmissivity (m-scale)
+    β      ::T  # Power law exponent for hydraulic transmissivity (opening/closing)
+    f      ::T  # Darcy-Weisbach friction factor
+    F_till ::T  # Till compressibility/yield factor for soft-bed transition
+    Q_c    ::T  # Threshold discharge for laminar-to-turbulent transition [m³/s]
+    H_0    ::T  # Thickness of canals for soft bed deformation [m]
+    l_c    ::T  # Distance between conduits [m]
+    K      ::T  # Conductivity coefficient in Darcy–Weisbach relation
+    η_w    ::T  # Dynamic viscosity of water [Pa·s]
+    Wmin   ::T  # Minimum subglacial water layer thickness [m]
+    Wmax   ::T  # Maximum subglacial water layer thickness [m]
 
-    # Model constants
-    ρ_w    ::T
-    ρ_i    ::T
-    g      ::T
-    L_w    ::T
-    n      ::T
-    h_b    ::T
-    α      ::T
-    β      ::T
-    f      ::T
-    F_till ::T
-    Q_c    ::T
-    H_0    ::T
-    l_c    ::T
-    K      ::T
-    η_w    ::T
-    Wmin  ::T
-    Wmax  ::T
+    # Geometric potential 
+    ϕ₀                   ::A  # Geometric potential [Pa]
+    ϕ₀_tmp               ::A  # Temporary storage for potential filling of ϕ₀ to smoothen local minima and avoid stuck water
+    minus_∇ϕ₀_x          ::A  # Geometric potential gradient x-component [Pa/m]
+    minus_∇ϕ₀_y          ::A  # Geometric potential gradient y-component [Pa/m]
+    abs_∇ϕ₀              ::A  # Magnitude of the geometric potential gradient [Pa/m]
+    minus_∇ϕ₀_smoothed_x ::A  # Smoothed gradient x-component of the geometric potential [Pa/m]
+    minus_∇ϕ₀_smoothed_y ::A  # Smoothed gradient y-component of the geometric potential [Pa/m]
+    abs_∇ϕ₀_smoothed     ::A  # Magnitude of the smoothed gradient of the geometric potential [Pa/m]
 
-    # Geometric potential
-    ϕ₀                   ::A
-    ϕ₀_tmp               ::A
-    minus_∇ϕ₀_x          ::A
-    minus_∇ϕ₀_y          ::A
-    abs_∇ϕ₀              ::A
-    minus_∇ϕ₀_smoothed_x ::A
-    minus_∇ϕ₀_smoothed_y ::A
-    abs_∇ϕ₀_smoothed     ::A
+    # Water flux 
+    ψ_out  ::A  # Integrated scalar water flux [m³/s]
+    corfac ::A  # Correction factor to go from ψ_out to q
+    q      ::A  # Distributed water flux [m²/s]
 
-    # Water flux
-    ψ_out  ::A
-    corfac ::A
-    q      ::A
-
-    # Effective pressure
-    Q       ::A
-    κ       ::A
-    abs_v_b ::A
-    A_visc  ::A
-    S_inf   ::A
-    H_hard  ::A
-    H_soft  ::A
-    H       ::A
-    N_inf   ::A
-    Po      ::A
+    # Effective pressure and Bed state 
+    Q       ::A  # Volumetric water flux within a conduit [m³/s]
+    κ       ::A  # Bed type indicator (0: hard, 1: soft)
+    abs_v_b ::A  # Magnitude of basal sliding velocity [m/s]
+    A_visc  ::A  # Ice flow law rate factor (Glen's A) [Pa⁻ⁿ s⁻¹]
+    S_inf   ::A  # Far-field (away from grounding line) conduit cross-sectional area [m²]
+    H_hard  ::A  # Thickness of conduits over a hard bed [m]
+    H_soft  ::A  # Thickness of conduits over a soft bed [m]
+    H       ::A  # Thickness of conduits [m]
+    N_inf   ::A  # Far-field (away from grounding line) effective pressure [Pa]
+    Po      ::A  # Ice overburden pressure (ρ_i * g * ice_thickness) [Pa]
 
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+The constructor to the Kazmierczak et al 2024 hydrology model. All fields are initialized here to zero, except from 
+the viscosity parameter A_visc from Glen's flow, the κ field describing the hardness of the bed, and the absolute value
+of the basal velocity of the ice. These three fields are given values from an input file. The user must provide these fields
+for the simulation to be able to start.
+"""
 function KazmierczakHydroModel(
     grid::OGRectHydroGrid,
     κ_in::AbstractArray{<:AbstractFloat},
@@ -83,9 +101,9 @@ function KazmierczakHydroModel(
     H_0    = T(0.1)
     l_c    = T(10000.0)
     K      = (T(2)/T(pi))^(T(0.25)) * sqrt((T(pi) + T(2)) / (ρ_w * f))
-    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water
-    Wmin = T(1e-8)  # minimum value for water layer thickness W
-    Wmax = T(0.015) # maximum value for water layer thickness W
+    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water (values from KORI-ULB model - see the file KoriInputParams.m at https://github.com/FrankPat/Kori-ULB)
+    Wmin = T(1e-8)  # minimum value for water layer thickness W (values from KORI-ULB model)
+    Wmax = T(0.015) # maximum value for water layer thickness W (values from KORI-ULB model)
     
     # Geometric potential
     ϕ₀                   = set!(CenterField(grid.grid), 0.0)  # Geometric potential [Pa]

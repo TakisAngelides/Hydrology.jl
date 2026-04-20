@@ -23,7 +23,7 @@ include("utilities.jl")
 include("plotting.jl")
 
 # grid.jl
-export AbstractHydroGrid, OGRectHydroGrid
+export AbstractHydroGrid, OGRectHydroGrid, fill_halo!
 
 # model.jl
 export AbstractHydroModel, KazmierczakHydroModel
@@ -38,7 +38,7 @@ export AbstractSimulation, TimeSimulation, SteadyStateSimulation
 export run!, update_steady_state!
 
 # water_flux.jl
-export update_q!, fill_halo!, update_ϕ₀!, potential_filling!, update_potential_gradients!, update_smoothed_potential_gradients!, accumulate_ψ_out!, update_ψ_out!, update_W!
+export update_q!, update_ϕ₀!, potential_filling!, update_potential_gradients!, update_smoothed_potential_gradients!, accumulate_ψ_out!, update_ψ_out!, update_W!
 
 # effective_pressure.jl
 export update_N!, update_Po!, update_H!, update_S_inf!, update_N_inf!, update_Q!
