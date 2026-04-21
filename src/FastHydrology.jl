@@ -26,7 +26,7 @@ include("plotting.jl")
 export AbstractHydroGrid, OGRectHydroGrid, fill_halo!
 
 # model.jl
-export AbstractHydroModel, KazmierczakHydroModel
+export AbstractHydroModel, KazmierczakHydroModel, HABHydroModel
 
 # state.jl
 export AbstractHydroState, HydroState

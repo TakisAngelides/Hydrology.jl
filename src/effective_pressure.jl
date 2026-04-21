@@ -1,6 +1,6 @@
-##########################
-# Kazmierczak et al 2024 #
-##########################
+#################################
+# Model: Kazmierczak et al 2024 #
+#################################
 
 
 """
@@ -26,8 +26,8 @@ $(TYPEDSIGNATURES)
 
 Update the hydrostatic ice overburden pressure Po based on ice thickness h.
 """
-function update_Po!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
-    @. model.Po = model.ρ_i * model.g * state.h
+function update_Po!(model::Union{KazmierczakHydroModel, HABHydroModel}, grid::OGRectHydroGrid, state::HydroState)
+    @. model.Po.data = max(model.ρ_i * model.g * state.h.data, 1e5) # minimum limit taken from KORI-ULB model - see KoriInputParams.m at https://github.com/FrankPat/Kori-ULB
     fill_halo!(model.Po, grid)
     return nothing
 end
@@ -88,4 +88,45 @@ function update_Q!(model::KazmierczakHydroModel, grid::OGRectHydroGrid)
     @. model.Q = model.q * model.l_c
     fill_halo!(model.Q, grid)
     return nothing
+end
+
+####################################
+# Model: Heigh above buyancy (HAB) #
+####################################
+
+"""
+$(TYPEDSIGNATURES)
+
+Update the effective pressure N across the grid using a complementary error function 
+transition between geometric potential and far-field effective pressure.
+"""
+function update_N!(model::HABHydroModel, grid::OGRectHydroGrid, state::HydroState)
+
+    # Update ice overburden pressure
+    update_Po!(model, grid, state)
+
+    # Update water pressure
+    update_p_w!(model, grid, state)
+
+    # Update effective pressure
+    @. state.N.data = max(model.Po.data - model.p_w.data, model.sigmat * model.Po.data)
+    fill_halo!(state.N, grid)
+    
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Update the water pressure p_w.
+"""
+function update_p_w!(model::HABHydroModel, grid::OGRectHydroGrid, state::HydroState)
+
+    @. model.p_w.data                          = - model.P_w * model.ρ_sw * model.g * state.b.data 
+    @. model.p_w.data[state.mask.data .== 0.0] =   model.P_w * model.ρ_i  * model.g * state.h.data[state.mask.data .== 0.0]
+    @. model.p_w.data[state.b.data .>= 0.0]    = 0.0
+    fill_halo!(model.p_w, grid)
+
+    return nothing
+
 end

@@ -1,6 +1,7 @@
 #=
-# [Kazmierczak et al 2024](@id Kazmierczak2024)
-This is an example of how to run the FastHydrology.jl package for the steady state problem of Kazmierczak et al 2024.
+# [Height above buoyancy (HAB)](@id HAB)
+This is an example of how to run the FastHydrology.jl package for the steady state problem of the HAB model which described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
+
 =#
 using FastHydrology
 
@@ -19,9 +20,9 @@ grid = OGRectHydroGrid(Nx, Ny, xlims, ylims; T = T)
 
 fig = visualize_grid(grid) 
 
-# We then build the model using the data from the input file above. The model will hold its model-specific fields, with the rest of the fields common to all models stored in the HydroState below.
+# We then build the model using the data from the input file above. The model will hold its model-specific constants and fields, with the rest of the fields common to all models stored in the HydroState below.
 
-model = KazmierczakHydroModel(grid, κ, abs_v_b, A_visc, ṁ_over_ρ_w);
+model = HABHydroModel(grid);
 
 # Further, we build the hydrology state using some of the data from the input file. This state will store the fields common to all hydrology models.
 
@@ -35,11 +36,5 @@ sim = SteadyStateSimulation(model, grid, state);
 
 run!(sim)
 
-# Now we can visualize the resulting water flux q [m² s⁻¹].
-fig_q = visualize_field(model.q, state.mask; plot_title = "q")
-
-# The effective pressure N [MPa].
+# Now we can visualize the resulting effective pressure N [MPa].
 fig_N = visualize_field(state.N, state.mask; plot_title = "N")
-
-# The water layer thickness W [m]
-fig_W = visualize_field(state.W, state.mask; plot_title = "W")

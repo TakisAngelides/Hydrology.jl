@@ -1,17 +1,17 @@
 ```@meta
-EditURL = "Kazmierczak2024.jl"
+EditURL = "HAB.jl"
 ```
 
-# [Kazmierczak et al 2024](@id Kazmierczak2024)
-This is an example of how to run the FastHydrology.jl package for the steady state problem of Kazmierczak et al 2024.
+# [Height above buoyancy (HAB)](@id HAB)
+This is an example of how to run the FastHydrology.jl package for the steady state problem of the HAB model which described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
 
-````@example Kazmierczak2024
+````@example HAB
 using FastHydrology
 ````
 
 How to load data from a file to get the necessary inputs to initialize the grid, model and state for the Kazmierczak et al 2024 paper.
 
-````@example Kazmierczak2024
+````@example HAB
 T = Float64 # Type of the physical fields
 path = "$(@__DIR__)/input/Kazmierczak2024/THWAITES2km_m3_HAB_toto.mat" # Path to data for Fig. S3 of Kazmierczak et al 2024 which focuses on Thwaites glacier.
 data_loading_function = load_Kazmierczak # Function to load the data.
@@ -20,58 +20,46 @@ Nx, Ny, xlims, ylims, mask, h, b, abs_v_b, A_visc, ṁ_over_ρ_w, κ = load_Kazm
 
 Here we prepare a grid using the Oceananigans rectilinear grid.
 
-````@example Kazmierczak2024
+````@example HAB
 grid = OGRectHydroGrid(Nx, Ny, xlims, ylims; T = T)
 ````
 
 There is a function to visualize the Oceananigans rectilinear grid.
 
-````@example Kazmierczak2024
+````@example HAB
 fig = visualize_grid(grid)
 ````
 
-We then build the model using the data from the input file above. The model will hold its model-specific fields, with the rest of the fields common to all models stored in the HydroState below.
+We then build the model using the data from the input file above. The model will hold its model-specific constants and fields, with the rest of the fields common to all models stored in the HydroState below.
 
-````@example Kazmierczak2024
-model = KazmierczakHydroModel(grid, κ, abs_v_b, A_visc, ṁ_over_ρ_w);
+````@example HAB
+model = HABHydroModel(grid);
 nothing #hide
 ````
 
 Further, we build the hydrology state using some of the data from the input file. This state will store the fields common to all hydrology models.
 
-````@example Kazmierczak2024
+````@example HAB
 state = HydroState(grid, mask, h, b);
 nothing #hide
 ````
 
 Finally we can create a simulation struct. Since the Kazmierczak et al 2024 model is a steady state problem we create a SteadyStateSimulation rather than a TimeSimulation.
 
-````@example Kazmierczak2024
+````@example HAB
 sim = SteadyStateSimulation(model, grid, state);
 nothing #hide
 ````
 
 We can now run the simulation which will update the hydrology state, as well as the model-dependent fields defined in the model.
 
-````@example Kazmierczak2024
+````@example HAB
 run!(sim)
 ````
 
-Now we can visualize the resulting water flux q [m² s⁻¹].
+Now we can visualize the resulting effective pressure N [MPa].
 
-````@example Kazmierczak2024
-fig_q = visualize_field(model.q, state.mask; plot_title = "q")
-````
-
-The effective pressure N [MPa].
-
-````@example Kazmierczak2024
+````@example HAB
 fig_N = visualize_field(state.N, state.mask; plot_title = "N")
-````
-
-The water layer thickness W [m]
-
-````@example Kazmierczak2024
-fig_W = visualize_field(state.W, state.mask; plot_title = "W")
 ````
 

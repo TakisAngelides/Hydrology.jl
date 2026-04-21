@@ -5,6 +5,9 @@ An abstract type for the hydrology model to be simulated. The model can hold rev
 """
 abstract type AbstractHydroModel end
 
+#################################
+# Model: Kazmierczak et al 2024 #
+#################################
 
 """
 $(TYPEDSIGNATURES)
@@ -15,7 +18,7 @@ the calculations of water flux, we make the assumption that on the grid we have 
 mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
 
     # Model constants 
-    ρ_w    ::T  # Density of water [kg/m³]
+    ρ_w    ::T  # Density of fresh water [kg/m³]
     ρ_i    ::T  # Density of ice [kg/m³]
     g      ::T  # Gravitational acceleration [m/s²]
     L_w    ::T  # Latent heat of fusion for ice [J/kg]
@@ -44,9 +47,10 @@ mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroMode
     abs_∇ϕ₀_smoothed     ::A  # Magnitude of the smoothed gradient of the geometric potential [Pa/m]
 
     # Water flux 
-    ψ_out  ::A  # Integrated scalar water flux [m³/s]
-    corfac ::A  # Correction factor to go from ψ_out to q
-    q      ::A  # Distributed water flux [m²/s]
+    ṁ_over_ρ_w ::A  # basal melt rate per unit area / ρ_w [m/s]
+    ψ_out      ::A  # Integrated scalar water flux [m³/s]
+    corfac     ::A  # Correction factor to go from ψ_out to q
+    q          ::A  # Distributed water flux [m²/s]
 
     # Effective pressure and Bed state 
     Q       ::A  # Volumetric water flux within a conduit [m³/s]
@@ -70,17 +74,26 @@ The constructor to the Kazmierczak et al 2024 hydrology model. All fields are in
 the viscosity parameter A_visc from Glen's flow, the κ field describing the hardness of the bed, and the absolute value
 of the basal velocity of the ice. These three fields are given values from an input file. The user must provide these fields
 for the simulation to be able to start.
+
+# Arguments
+
+- `grid::OGRectHydroGrid`: Oceananigans RectilinearGrid
+- `κ_in::AbstractArray{<:AbstractFloat}`: Bed type indicator (0: hard, 1: soft)
+- `abs_v_b_in::AbstractArray{<:AbstractFloat}`: Magnitude of basal sliding velocity [m/s]
+- `A_visc_in::AbstractArray{<:AbstractFloat}`: Ice flow law rate factor (Glen's A) [Pa⁻ⁿ s⁻¹]
+- `ṁ_over_ρ_w_in::AbstractArray{<:AbstractFloat}`: Melt rate per unit area / ρ_w [m/s]
 """
 function KazmierczakHydroModel(
     grid::OGRectHydroGrid,
     κ_in::AbstractArray{<:AbstractFloat},
     abs_v_b_in::AbstractArray{<:AbstractFloat},
     A_visc_in::AbstractArray{<:AbstractFloat},
+    ṁ_over_ρ_w_in::AbstractArray{<:AbstractFloat},
 )
 
     expected_size = (grid.grid.Nx, grid.grid.Ny)
     
-    for (name, arr) in [("κ", κ_in), ("abs_v_b", abs_v_b_in), ("A_visc", A_visc_in)]
+    for (name, arr) in [("κ", κ_in), ("abs_v_b", abs_v_b_in), ("A_visc", A_visc_in), ("ṁ_over_ρ_w_in", ṁ_over_ρ_w_in)]
         size(arr)[1:2] == expected_size || throw(ArgumentError("$name size $(size(arr)) ≠ grid size $expected_size"))
     end
     
@@ -116,9 +129,10 @@ function KazmierczakHydroModel(
     abs_∇ϕ₀_smoothed     = set!(CenterField(grid.grid), 0.0)  # |smoothed ∇ϕ₀| [Pa/m]
     
     # Water flux
-    ψ_out  = set!(CenterField(grid.grid), 0.0)  # Integrated scalar water flux [m^2/s]
-    corfac = set!(CenterField(grid.grid), 0.0)  # Correction factor from ψ_out to q
-    q      = set!(CenterField(grid.grid), 0.0)  # Distributed water flux [m^2/s]
+    ṁ_over_ρ_w = set!(CenterField(grid.grid), ṁ_over_ρ_w_in) # Melt rate per unit area / ρ_w [m/s]
+    ψ_out      = set!(CenterField(grid.grid), 0.0)  # Integrated scalar water flux [m^2/s]
+    corfac     = set!(CenterField(grid.grid), 0.0)  # Correction factor from ψ_out to q
+    q          = set!(CenterField(grid.grid), 0.0)  # Distributed water flux [m^2/s]
     
     # Effective pressure
     Q       = set!(CenterField(grid.grid), 0.0)          # Volumetric water flux per conduit [m^3/s]
@@ -136,8 +150,65 @@ function KazmierczakHydroModel(
         ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
-        ψ_out, corfac, q,
+        ṁ_over_ρ_w, ψ_out, corfac, q,
         Q, κ, abs_v_b, A_visc, S_inf, H_hard, H_soft, H, N_inf, Po
+    )
+
+end
+
+
+####################################
+# Model: Heigh above buyancy (HAB) #
+####################################
+
+
+"""
+$(TYPEDSIGNATURES)
+
+The height above buoyancy (HAB) hydrology model described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
+"""
+mutable struct HABHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
+
+    # Model constants 
+    ρ_sw   ::T # Density of sea water [kg/m³]: Table 1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022)
+    ρ_i    ::T # Density of ice [kg/m³]
+    g      ::T # Gravitational acceleration [m/s²]
+    P_w    ::T # Latent heat of fusion for ice [J/kg]: Below Eq. (3) of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022)
+    sigmat ::T # Effective pressure lower bound as fraction of overburden pressure
+
+    # Effective pressure
+    Po  ::A  # Ice overburden pressure (ρ_i * g * ice_thickness) [Pa]
+    p_w ::A  # Water pressure [Pa]
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+The constructor to the HAB hydrology model.
+
+# Arguments
+
+- `grid::OGRectHydroGrid`: Oceananigans RectilinearGrid
+"""
+function HABHydroModel(grid::OGRectHydroGrid)
+
+    T  = eltype(grid.grid)
+    
+    # Physical constants
+    ρ_sw   = T(1027.0) # Density of sea water [kg/m³]: Table 1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022)
+    ρ_i    = T(917.0)  # Density of ice [kg/m³]
+    g      = T(9.81)   # Gravitational acceleration [m/s²]
+    P_w    = T(0.96)   # Latent heat of fusion for ice [J/kg]: Below Eq. (3) of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022)
+    sigmat = T(0.02)   # Effective pressure lower bound as fraction of overburden pressure
+    
+    # Effective pressure
+    Po = set!(CenterField(grid.grid), 0.0) # Ice overburden pressure
+    p_w = set!(CenterField(grid.grid), 0.0) # Water pressure
+    
+    return HABHydroModel(
+        ρ_sw, ρ_i, g, P_w, sigmat, 
+        Po, p_w
     )
 
 end

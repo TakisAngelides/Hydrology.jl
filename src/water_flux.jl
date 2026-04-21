@@ -1,6 +1,6 @@
-##########################
-# Kazmierczak et al 2024 #
-##########################
+#################################
+# Model: Kazmierczak et al 2024 #
+#################################
 
 
 """
@@ -204,7 +204,7 @@ function accumulate_ψ_out!(model::KazmierczakHydroModel, i, j, grid::OGRectHydr
     end
 
     # See Eq. (6) from Le Brocq et al 2009 (https://doi.org/10.3189/002214309790152564) for this udpate on ψ_out. We ensure that ψ_out stays non-negative, because ṁ can get negative.
-    model.ψ_out[i, j] = max(0.0, (state.ṁ[i, j] * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ) / model.ρ_w)
+    model.ψ_out[i, j] = max(0.0, model.ṁ_over_ρ_w[i, j] * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ)
 
     for (di, dj) in ((-1, 0), (1, 0), (0, -1), (0, 1))
 

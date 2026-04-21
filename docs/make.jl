@@ -16,11 +16,18 @@ bib = CitationBibliography(
 Literate.markdown(
     joinpath(@__DIR__, "src", "examples", "Kazmierczak2024.jl"),
     joinpath(@__DIR__, "src", "examples");
-    credit = false
+    config = Dict("credit" => false)
+)
+
+Literate.markdown(
+    joinpath(@__DIR__, "src", "examples", "HAB.jl"),
+    joinpath(@__DIR__, "src", "examples");
+    config = Dict("credit" => false)
 )
 
 example_pages = [
     "examples/Kazmierczak2024.md",
+    "examples/HAB.md",
 ]
 
 ref_pages = ["API_public.md", "references.md"]
