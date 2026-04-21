@@ -52,7 +52,7 @@ Update the water layer thickness W that is part of the HydroState. See Eq. (8) f
 """
 function update_W!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
 
-    abs_∇ϕ₀_smoothed_active = @views interior(model.abs_∇ϕ₀_smoothed, :, :, 1)[state.mask .== 1] # TODO: this still allocates memory when we do fields.mask .== 1
+    abs_∇ϕ₀_smoothed_active = @views interior(model.abs_∇ϕ₀_smoothed, :, :, 1)[state.mask .== 1]
     abs_∇ϕ₀_smoothed_active_mean = mean(abs_∇ϕ₀_smoothed_active)
     @. state.W.data = min(model.Wmax, max(model.Wmin, (12 * model.η_w * model.q.data / abs_∇ϕ₀_smoothed_active_mean)^(1/3)))
     fill_halo!(state.W, grid)
@@ -147,7 +147,7 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
     # The water flux at a given point is influenced by variations in ice thickness some distance away. To account for this we perform a convolution of the gradient of the potential
     # such that the influence of nearby points is now incorporated into the value of the gradient of the potential at that point.
     longcoupwater = 5.0
-    h_active = @views interior(state.h, :, :, 1)[state.mask .== 1] # TODO: this still allocates memory when we do fields.mask .== 1
+    h_active = @views interior(state.h, :, :, 1)[state.mask .== 1]
 
     h_avg = max(mean(h_active), 10.0) # see Cuffey & Paterson 2010 end of sec. 8.7.2 for the maximum value
     
