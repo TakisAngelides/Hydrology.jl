@@ -166,23 +166,17 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
     frb = Int((maxlevel - 1) / 2) 
 
     # Filtering kernel
-    kernel = zeros(maxlevel, maxlevel)
+    kernel = zeros(maxlevel, maxlevel, 1)
     for nj in 1:maxlevel, ni in 1:maxlevel
         dist = sqrt((Δ * (ni - frb - 1))^2 + (Δ * (nj - frb - 1))^2) / scale
-        kernel[ni, nj] = max(0.0, 1.0 - dist / 2.0)
+        kernel[ni, nj, 1] = max(0.0, 1.0 - dist / 2.0)
     end
     kernel ./= sum(kernel) # normalization is important as it ensures that the smoothing doesn't change the total amount of potential but only redistributes it
 
-    # Initialize the views of the arrays for imfilter! # TODO: understand why we cant give the whole data to imfilter! so as to avoid this interior slicing
-    @views minus_∇ϕ₀_smoothed_x = interior(model.minus_∇ϕ₀_smoothed_x)[1:end, :, 1]
-    @views minus_∇ϕ₀_smoothed_y = interior(model.minus_∇ϕ₀_smoothed_y)[:, 1:end, 1]
-    @views minus_∇ϕ₀_x = interior(model.minus_∇ϕ₀_x)[1:end, :, 1]
-    @views minus_∇ϕ₀_y = interior(model.minus_∇ϕ₀_y)[:, 1:end, 1]
-
     # This slides the cone kernel over every pixel of the gradient and each pixel's new value becomes a weighted average of its neighbors and itself, 
     # at the boundaries we reflect the array when the kernel is outside, imfilter! allocates quite a bit of memory e.g. see discussion here https://discourse.julialang.org/t/how-to-accelerate-the-imfiter-operation/102965/3
-    imfilter!(minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_x, centered(kernel))
-    imfilter!(minus_∇ϕ₀_smoothed_y, minus_∇ϕ₀_y, centered(kernel))
+    imfilter!(model.minus_∇ϕ₀_smoothed_x, model.minus_∇ϕ₀_x, centered(kernel))
+    imfilter!(model.minus_∇ϕ₀_smoothed_y, model.minus_∇ϕ₀_y, centered(kernel))
     
     # Halo used in the accumulate_ψ_out! so we update them according to the BC of the field
     fill_halo!(model.minus_∇ϕ₀_smoothed_x, grid)
