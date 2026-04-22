@@ -3,7 +3,7 @@ EditURL = "HAB.jl"
 ```
 
 # [Height above buoyancy (HAB)](@id HAB)
-This is an example of how to run the FastHydrology.jl package for the steady state problem of the HAB model which described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
+This is an example of how to run the FastHydrology.jl package for the steady state problem of the HAB model which is described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
 
 ````@example HAB
 using FastHydrology
