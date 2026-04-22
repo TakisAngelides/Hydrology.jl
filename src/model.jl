@@ -18,23 +18,24 @@ the calculations of water flux, we make the assumption that on the grid we have 
 mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
 
     # Model constants 
-    ρ_w    ::T  # Density of fresh water [kg/m³]
-    ρ_i    ::T  # Density of ice [kg/m³]
-    g      ::T  # Gravitational acceleration [m/s²]
-    L_w    ::T  # Latent heat of fusion for ice [J/kg]
-    n      ::T  # Glen's flow law exponent (typically 3)
-    h_b    ::T  # Typical bed obstacle height [m]
-    α      ::T  # Power law exponent for hydraulic transmissivity (m-scale)
-    β      ::T  # Power law exponent for hydraulic transmissivity (opening/closing)
-    f      ::T  # Darcy-Weisbach friction factor
-    F_till ::T  # Till compressibility/yield factor for soft-bed transition
-    Q_c    ::T  # Threshold discharge for laminar-to-turbulent transition [m³/s]
-    H_0    ::T  # Thickness of canals for soft bed deformation [m]
-    l_c    ::T  # Distance between conduits [m]
-    K      ::T  # Conductivity coefficient in Darcy–Weisbach relation
-    η_w    ::T  # Dynamic viscosity of water [Pa·s]
-    Wmin   ::T  # Minimum subglacial water layer thickness [m]
-    Wmax   ::T  # Maximum subglacial water layer thickness [m]
+    ρ_w           ::T  # Density of fresh water [kg/m³]
+    ρ_i           ::T  # Density of ice [kg/m³]
+    g             ::T  # Gravitational acceleration [m/s²]
+    L_w           ::T  # Latent heat of fusion for ice [J/kg]
+    n             ::T  # Glen's flow law exponent (typically 3)
+    h_b           ::T  # Typical bed obstacle height [m]
+    α             ::T  # Power law exponent for hydraulic transmissivity (m-scale)
+    β             ::T  # Power law exponent for hydraulic transmissivity (opening/closing)
+    f             ::T  # Darcy-Weisbach friction factor
+    F_till        ::T  # Till compressibility/yield factor for soft-bed transition
+    Q_c           ::T  # Threshold discharge for laminar-to-turbulent transition [m³/s]
+    H_0           ::T  # Thickness of canals for soft bed deformation [m]
+    l_c           ::T  # Distance between conduits [m]
+    K             ::T  # Conductivity coefficient in Darcy–Weisbach relation
+    η_w           ::T  # Dynamic viscosity of water [Pa·s]
+    Wmin          ::T  # Minimum subglacial water layer thickness [m]
+    Wmax          ::T  # Maximum subglacial water layer thickness [m]
+    longcoupwater ::T  # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients
 
     # Geometric potential 
     ϕ₀                   ::A  # Geometric potential [Pa]
@@ -114,10 +115,11 @@ function KazmierczakHydroModel(
     H_0    = T(0.1)
     l_c    = T(10000.0)
     K      = (T(2)/T(pi))^(T(0.25)) * sqrt((T(pi) + T(2)) / (ρ_w * f))
-    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water (values from KORI-ULB model - see the file KoriInputParams.m at https://github.com/FrankPat/Kori-ULB)
-    Wmin = T(1e-8)  # minimum value for water layer thickness W (values from KORI-ULB model)
-    Wmax = T(0.015) # maximum value for water layer thickness W (values from KORI-ULB model)
-    
+    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water (value from KORI-ULB model - see the file KoriInputParams.m at https://github.com/FrankPat/Kori-ULB)
+    Wmin = T(1e-8)  # minimum value for water layer thickness W (value from KORI-ULB model)
+    Wmax = T(0.015) # maximum value for water layer thickness W (value from KORI-ULB model)
+    longcoupwater = T(5.0) # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients (value from KORI-ULB model)
+
     # Geometric potential
     ϕ₀                   = set!(CenterField(grid.grid), 0.0)  # Geometric potential [Pa]
     ϕ₀_tmp               = set!(CenterField(grid.grid), 0.0)  # Geometric potential placeholder for filling
@@ -147,7 +149,7 @@ function KazmierczakHydroModel(
     Po      = set!(CenterField(grid.grid), 0.0)          # Ice overburden pressure
     
     return KazmierczakHydroModel(
-        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax,
+        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
         ṁ_over_ρ_w, ψ_out, corfac, q,

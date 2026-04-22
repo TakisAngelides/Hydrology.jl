@@ -141,18 +141,18 @@ end
 $(TYPEDSIGNATURES)
 
 Update the smoothed geometric potentials to incorporate the effects of the stress-gradient coupling. See also the description of the update_q! function.
+
+The water flux at a given point is influenced by variations in ice thickness some distance away. To account for this we perform a convolution of the gradient of the potential
+such that the influence of nearby points is now incorporated into the value of the gradient of the potential at that point.
 """
 function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
 
-    # The water flux at a given point is influenced by variations in ice thickness some distance away. To account for this we perform a convolution of the gradient of the potential
-    # such that the influence of nearby points is now incorporated into the value of the gradient of the potential at that point.
-    longcoupwater = 5.0
+    # Average grounded-ice ice thickness
     h_active = @views interior(state.h, :, :, 1)[state.mask .== 1]
-
     h_avg = max(mean(h_active), 10.0) # see Cuffey & Paterson 2010 end of sec. 8.7.2 for the maximum value
     
     # Radius of influence
-    scale = h_avg * longcoupwater * 2.0 # represents half the radius of the influence zone of the ice thickness on water
+    scale = h_avg * model.longcoupwater * 2.0 # represents half the radius of the influence zone of the ice thickness on water
     width = 2.0 * scale # radius of influence, after which the cone ends and the weighting of any points beyond that range is 0
     Δ = grid.grid.Δxᶜᵃᵃ # here we take that dx = dy, assume even spacing, and use the distance between centers
     if width <= Δ
