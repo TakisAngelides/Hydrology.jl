@@ -5,9 +5,11 @@ An abstract type for the hydrology model to be simulated. The model can hold rev
 """
 abstract type AbstractHydroModel end
 
+
 #################################
 # Model: Kazmierczak et al 2024 #
 #################################
+
 
 """
 $(TYPEDSIGNATURES)
@@ -183,6 +185,7 @@ mutable struct HABHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
     p_w ::A  # Water pressure [Pa]
 
 end
+
 
 """
 $(TYPEDSIGNATURES)
