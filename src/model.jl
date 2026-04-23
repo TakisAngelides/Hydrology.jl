@@ -38,6 +38,7 @@ mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroMode
     Wmin          ::T  # Minimum subglacial water layer thickness [m]
     Wmax          ::T  # Maximum subglacial water layer thickness [m]
     longcoupwater ::T  # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients
+    sigmat        ::T  # Effective pressure lower bound as fraction of overburden pressure
 
     # Geometric potential 
     ϕ₀                   ::A  # Geometric potential [Pa]
@@ -91,7 +92,25 @@ function KazmierczakHydroModel(
     κ_in::AbstractArray{<:AbstractFloat},
     abs_v_b_in::AbstractArray{<:AbstractFloat},
     A_visc_in::AbstractArray{<:AbstractFloat},
-    ṁ_over_ρ_w_in::AbstractArray{<:AbstractFloat},
+    ṁ_over_ρ_w_in::AbstractArray{<:AbstractFloat};
+    ρ_w    = 1000.0,
+    ρ_i    = 917.0,
+    g      = 9.81,
+    L_w    = 3.34e5,
+    n      = 3.0,
+    h_b    = 0.1,
+    α      = 5/4,
+    β      = 3/2,
+    f      = 0.1,
+    F_till = 1.1,
+    Q_c    = 1.0,
+    H_0    = 0.1,
+    l_c    = 10000.0,
+    η_w    = perYear2perSecond(1.8e-3),
+    Wmin   = 1e-8,
+    Wmax   = 0.015,
+    longcoupwater = 5.0,
+    sigmat = 0.02
 )
 
     expected_size = (grid.grid.Nx, grid.grid.Ny)
@@ -103,24 +122,25 @@ function KazmierczakHydroModel(
     T  = eltype(grid.grid)
     
     # Physical constants
-    ρ_w    = T(1000.0)
-    ρ_i    = T(917.0)
-    g      = T(9.81)
-    L_w    = T(3.34e5)
-    n      = T(3.0)
-    h_b    = T(0.1)
-    α      = T(5//4)
-    β      = T(3//2)
-    f      = T(0.1)
-    F_till = T(1.1)
-    Q_c    = T(1.0)
-    H_0    = T(0.1)
-    l_c    = T(10000.0)
+    ρ_w    = T(ρ_w)
+    ρ_i    = T(ρ_i)
+    g      = T(g)
+    L_w    = T(L_w)
+    n      = T(n)
+    h_b    = T(h_b)
+    α      = T(α)
+    β      = T(β)
+    f      = T(f)
+    F_till = T(F_till)
+    Q_c    = T(Q_c)
+    H_0    = T(H_0)
+    l_c    = T(l_c)
     K      = (T(2)/T(pi))^(T(0.25)) * sqrt((T(pi) + T(2)) / (ρ_w * f))
-    η_w = perYear2perSecond(T(1.8e-3)) # viscosity of water (value from KORI-ULB model - see the file KoriInputParams.m at https://github.com/FrankPat/Kori-ULB)
-    Wmin = T(1e-8)  # minimum value for water layer thickness W (value from KORI-ULB model)
-    Wmax = T(0.015) # maximum value for water layer thickness W (value from KORI-ULB model)
-    longcoupwater = T(5.0) # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients (value from KORI-ULB model)
+    η_w = T(η_w) # viscosity of water (value from KORI-ULB model - see the file KoriInputParams.m at https://github.com/FrankPat/Kori-ULB)
+    Wmin = T(Wmin)  # minimum value for water layer thickness W (value from KORI-ULB model)
+    Wmax = T(Wmax) # maximum value for water layer thickness W (value from KORI-ULB model)
+    longcoupwater = T(longcoupwater) # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients (value from KORI-ULB model)
+    sigmat = T(sigmat) # Effective pressure lower bound as fraction of overburden pressure
 
     # Geometric potential
     ϕ₀                   = set!(CenterField(grid.grid), 0.0)  # Geometric potential [Pa]
@@ -151,7 +171,7 @@ function KazmierczakHydroModel(
     Po      = set!(CenterField(grid.grid), 0.0)          # Ice overburden pressure
     
     return KazmierczakHydroModel(
-        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater,
+        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater, sigmat,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
         ṁ_over_ρ_w, ψ_out, corfac, q,
