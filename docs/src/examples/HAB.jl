@@ -3,13 +3,15 @@
 This is an example of how to run the FastHydrology.jl package for the steady state problem of the HAB model which is described in Sec. 2.1.1 of Kazmierczak et al 2022 (https://doi.org/10.5194/tc-16-4537-2022).
 
 =#
+
 using FastHydrology
+using FileIO
+using CairoMakie
 
 # How to load data from a file to get the necessary inputs to initialize the grid, model and state for the Kazmierczak et al 2024 paper.
 
 T = Float64 # Type of the physical fields
 path = "$(@__DIR__)/input/Kazmierczak2024/THWAITES2km_m3_HAB_toto.mat" # Path to data for Fig. S3 of Kazmierczak et al 2024 which focuses on Thwaites glacier.
-data_loading_function = load_Kazmierczak # Function to load the data.
 Nx, Ny, xlims, ylims, mask, h, b, abs_v_b, A_visc, ṁ_over_ρ_w, κ = load_Kazmierczak(path)
 
 # Here we prepare a grid using the Oceananigans rectilinear grid.
@@ -36,5 +38,31 @@ sim = SteadyStateSimulation(model, grid, state);
 
 run!(sim)
 
+# Preprocessing the data before plotting
+
+state.N .*= 1e-6 # makes N [MPa]
+state.N .= mask_field(state.N, state.mask, NaN);
+
 # Now we can visualize the resulting effective pressure N [MPa].
-fig_N = visualize_field(state.N, state.mask; plot_title = "N")
+
+fig_N = visualize_field(state.N; plot_title = "N", transpose_data = true, colorrange = (0, 10))
+
+# Using a similar setup to the one above but with model.longcoupwater = 0.0, we can plot results for the whole of Antarctica.
+
+function plot(f, r)
+    img = load("$(@__DIR__)/figures/HAB_yelmox_$(f)_$(r)km.png")
+    fig = CairoMakie.Figure()
+    ax = Axis(fig[1, 1], yreversed = true)
+    image!(ax, img')
+    ax.aspect = DataAspect()
+    hidedecorations!(ax)
+    return fig    
+end
+
+# Effective pressure 32km resolution.
+
+fig = plot("N", "32")
+
+# Effective pressure 16km resolution.
+
+fig = plot("N", "16")

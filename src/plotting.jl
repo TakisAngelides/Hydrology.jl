@@ -1,6 +1,80 @@
 """
 $(TYPEDSIGNATURES)
 
+Visualize a field.
+"""
+function visualize_field(x, y, data; 
+        plot_title = "", 
+        transpose_data = false, 
+        colorrange = extrema(filter(!isnan, data)), 
+        display_flag = false, 
+        colormap = Reverse(:RdBu), 
+        colorscale = identity,
+        savefig_path = nothing
+    )
+
+    fig = Figure(size = (900, 700))
+    ax = Axis(fig[1, 1], xlabel = "x", ylabel = "y", title = plot_title, aspect = DataAspect())
+
+    if transpose_data
+        data = data'
+    end
+    
+    hm = heatmap!(ax, x, y, data, colormap = colormap, colorrange = colorrange, colorscale = colorscale)
+
+    Colorbar(fig[1, 2], hm)
+
+    if display_flag
+        display(fig)
+    end
+
+    if savefig_path !== nothing
+        save(savefig_path, fig)
+    end
+
+    return fig
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Visualize an Oceananigans field.
+"""
+function visualize_field(field::Oceananigans.Fields.Field; kwargs...)
+
+    data = interior(field)[:, :, 1]
+    x, y = nodes(field)
+    visualize_field(x, y, data; kwargs...)
+    
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Set a field to a given input value where the mask is not 1.
+"""
+function mask_field(field::Oceananigans.Fields.Field, mask, value)
+
+    Nx, Ny = size(mask)
+    res = deepcopy(field)
+    for j in 1:Ny
+        for i in 1:Nx
+            if mask[i, j] != 1.0
+                res[i, j, 1] = value
+            end
+        end
+    end
+
+    return res
+    
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
 Visualize the Oceananigans Rectilinear grid.
 """
 function visualize_grid(grid::OGRectHydroGrid)
@@ -48,44 +122,4 @@ function visualize_grid(grid::OGRectHydroGrid)
 
     return fig
 
-end
-
-
-"""
-$(TYPEDSIGNATURES)
-
-Visualize a field.
-"""
-function visualize_field(x, y, data, mask; plot_title = "")
-
-    fig = Figure(size = (900, 700))
-    ax = Axis(fig[1, 1], xlabel = "x", ylabel = "y", title = plot_title, aspect = DataAspect())
-
-    data[mask .!= 1] .= NaN
-
-    if plot_title == "q"
-        hm = heatmap!(ax, perSecond2perYear.(data') ./ 1e4; colormap = Reverse(:RdBu), colorrange = (0, 10)) # for q [m² s⁻¹]
-    elseif plot_title == "N"
-        hm = heatmap!(ax, data' .* 1e-6; colormap = Reverse(:RdBu), colorrange = (0, 10)) # for N [MPa]
-    else 
-        hm = heatmap!(ax, x, y, data')
-    end
-
-    Colorbar(fig[1, 2], hm)
-
-    return fig
-end
-
-
-"""
-$(TYPEDSIGNATURES)
-
-Visualize an Oceananigans field.
-"""
-function visualize_field(field::Oceananigans.Field, mask; kwargs...)
-
-    data = interior(field)[:, :, 1]
-    x, y = nodes(field)
-    visualize_field(x, y, data, mask; kwargs...)
-    
 end

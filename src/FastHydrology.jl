@@ -1,15 +1,17 @@
 module FastHydrology
 
-using MAT
 using Oceananigans
 using Oceananigans.BoundaryConditions: fill_halo_regions!
-using CairoMakie
 using BenchmarkTools
 using ImageFiltering
 using OffsetArrays
 using Base.Threads
 using SpecialFunctions
 using DocStringExtensions
+using MAT
+using NCDatasets
+using CairoMakie
+using CairoMakie: Reverse
 
 include("grid.jl")
 include("model.jl")
@@ -44,12 +46,12 @@ export update_q!, update_ϕ₀!, potential_filling!, update_potential_gradients!
 export update_N!, update_Po!, update_H!, update_S_inf!, update_N_inf!, update_Q!
 
 # data_loaders
-export load_Kazmierczak
+export load_Kazmierczak, load_yelmox
 
 # utilities.jl
 export compute_lims, perYear2perSecond, perSecond2perYear, Km2m
 
 # plotting.jl
-export visualize_grid, visualize_field
+export visualize_grid, visualize_field, mask_field
 
 end

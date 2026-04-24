@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "5d719697d32860ef8bbcd91e3867187e0161d2f7"
+project_hash = "ae2b9595fdee7adda0b53354363992ffb93f95d0"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -176,6 +176,12 @@ git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
 version = "0.1.9"
 
+[[deps.Blosc_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Lz4_jll", "Zlib_jll", "Zstd_jll"]
+git-tree-sha1 = "535c80f1c0847a4c967ea945fca21becc9de1522"
+uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
+version = "1.21.7+0"
+
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
@@ -186,6 +192,12 @@ version = "1.0.9+0"
 git-tree-sha1 = "389ad5c84de1ae7cf0e28e381131c98ea87d54fc"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.5.0"
+
+[[deps.CFTime]]
+deps = ["Dates", "Printf"]
+git-tree-sha1 = "b2c9f2d3b8014323c0a8f2b401b68fa6bb08ed06"
+uuid = "179af706-886a-5703-950a-314cd64e0468"
+version = "0.2.8"
 
 [[deps.CRC32c]]
 uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
@@ -304,6 +316,12 @@ git-tree-sha1 = "37ea44092930b1811e666c3bc38065d7d87fcc74"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.13.1"
 
+[[deps.CommonDataModel]]
+deps = ["CFTime", "DataStructures", "Dates", "DiskArrays", "Preferences", "Printf", "Statistics"]
+git-tree-sha1 = "bf07704e843daabd2cb2bb1404571656f80bce16"
+uuid = "1fbeeb36-5f17-413c-809b-666fb144f157"
+version = "0.4.3"
+
 [[deps.CommonWorldInvalidations]]
 git-tree-sha1 = "ae52d1c52048455e85a387fbee9be553ec2b68d0"
 uuid = "f70d9fcc-98c5-4d4a-abd7-e4cdeebd8ca8"
@@ -411,6 +429,12 @@ deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "c55f5a9fd67bdbc8e089b5a3111fe4292986a8e8"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.6"
+
+[[deps.DiskArrays]]
+deps = ["ConstructionBase", "LRUCache", "Mmap", "OffsetArrays"]
+git-tree-sha1 = "e5d9ce1b751ddf9bcd9d36b51249dce8ea73cd55"
+uuid = "3c3547ce-8d99-4f5e-a174-61eb10b00ae3"
+version = "0.4.19"
 
 [[deps.Distances]]
 deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
@@ -542,7 +566,7 @@ uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
 version = "3.3.11+0"
 
 [[deps.FastHydrology]]
-deps = ["BenchmarkTools", "CairoMakie", "DocStringExtensions", "Documenter", "DocumenterCitations", "DocumenterTools", "ImageFiltering", "Literate", "MAT", "Oceananigans", "OffsetArrays", "SpecialFunctions"]
+deps = ["BenchmarkTools", "CairoMakie", "DocStringExtensions", "Documenter", "DocumenterCitations", "DocumenterTools", "ImageFiltering", "Literate", "MAT", "NCDatasets", "Oceananigans", "OffsetArrays", "SpecialFunctions"]
 path = ".."
 uuid = "91547ff3-b885-4d35-ac59-f1ca93abc87d"
 version = "1.0.0-DEV"
@@ -1056,6 +1080,15 @@ git-tree-sha1 = "eb62a3deb62fc6d8822c0c4bef73e4412419c5d8"
 uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "18.1.8+0"
 
+[[deps.LRUCache]]
+git-tree-sha1 = "5519b95a490ff5fe629c4a7aa3b3dfc9160498b3"
+uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
+version = "1.6.2"
+weakdeps = ["Serialization"]
+
+    [deps.LRUCache.extensions]
+    SerializationExt = ["Serialization"]
+
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
@@ -1183,6 +1216,12 @@ deps = ["Dates", "Logging"]
 git-tree-sha1 = "f00544d95982ea270145636c181ceda21c4e2575"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.2.0"
+
+[[deps.Lz4_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "191686b1ac1ea9c89fc52e996ad15d1d241d1e33"
+uuid = "5ced341a-0733-55b8-9ab6-a4889d929147"
+version = "1.10.1+0"
 
 [[deps.MAT]]
 deps = ["CodecZlib", "Dates", "HDF5", "OrderedCollections", "PooledArrays", "SparseArrays", "StringEncodings", "Tables"]
@@ -1321,11 +1360,27 @@ git-tree-sha1 = "cac9cc5499c25554cba55cd3c30543cff5ca4fab"
 uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
 version = "0.2.4"
 
+[[deps.NCDatasets]]
+deps = ["CFTime", "CommonDataModel", "DataStructures", "Dates", "DiskArrays", "NetCDF_jll", "NetworkOptions", "Printf"]
+git-tree-sha1 = "5eb7747d10437f5acb2675c1f865ffa0353f3f9c"
+uuid = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
+version = "0.14.15"
+weakdeps = ["MPI"]
+
+    [deps.NCDatasets.extensions]
+    NCDatasetsMPIExt = "MPI"
+
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
 git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "1.1.3"
+
+[[deps.NetCDF_jll]]
+deps = ["Artifacts", "Blosc_jll", "Bzip2_jll", "HDF5_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPIABI_jll", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "TOML", "XML2_jll", "Zlib_jll", "Zstd_jll", "libaec_jll", "libzip_jll"]
+git-tree-sha1 = "8a36db9b934b0e72583e624abc8f3b3d60554f2c"
+uuid = "7243133f-43d8-5620-bbf4-c2c921802cf3"
+version = "401.1000.0+0"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
@@ -2288,6 +2343,12 @@ deps = ["Artifacts", "Giflib_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Lib
 git-tree-sha1 = "4e4282c4d846e11dce56d74fa8040130b7a95cb3"
 uuid = "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"
 version = "1.6.0+0"
+
+[[deps.libzip_jll]]
+deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "OpenSSL_jll", "XZ_jll", "Zlib_jll", "Zstd_jll"]
+git-tree-sha1 = "86addc139bca85fdf9e7741e10977c45785727b7"
+uuid = "337d8026-41b4-5cde-a456-74a10e5b31d1"
+version = "1.11.3+0"
 
 [[deps.mpif_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIABI_jll", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "TOML"]

@@ -28,7 +28,7 @@ $(TYPEDSIGNATURES)
 
 Convert input float `f` from per year to per second.
 """
-function perYear2perSecond(f::T) where {T <: AbstractFloat}
+function perYear2perSecond(f::T) where {T <: Real}
     f / T(SECONDS_PER_YEAR)
 end
 
@@ -38,7 +38,7 @@ $(TYPEDSIGNATURES)
 
 Convert input float `f` from per second to per year.
 """
-function perSecond2perYear(f::T) where {T <: AbstractFloat}
+function perSecond2perYear(f::T) where {T <: Real}
     f * T(SECONDS_PER_YEAR)
 end
 
@@ -48,6 +48,6 @@ $(TYPEDSIGNATURES)
 
 Convert input float `f` from kilometers to meters.
 """
-function Km2m(f::T) where {T <: AbstractFloat}
+function Km2m(f::T) where {T <: Real}
     f * T(METERS_PER_KILOMETER)
 end
