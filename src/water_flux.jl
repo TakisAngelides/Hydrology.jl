@@ -35,7 +35,7 @@ function update_q!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::H
      
     # This is the factor to go from ψ_out to q. It can be derived using the definition of ψ_out = integral of q ⋅ n with n the outward normal 
     # and the line integral is over the whole sides of the grid cell that water leaves the cell, which can be 1 side for when q points to any of the 4 cardinal neighbours's center or 2 sides.
-    @. model.corfac.data = model.abs_∇ϕ₀_smoothed.data * grid.grid.Δxᶜᵃᵃ / sqrt(model.minus_∇ϕ₀_smoothed_x.data^2 + model.minus_∇ϕ₀_smoothed_y.data^2) # TODO: fix according to ipad water flux notes
+    @. model.corfac.data = (abs(model.minus_∇ϕ₀_smoothed_x.data) * grid.grid.Δyᵃᶜᵃ + abs(model.minus_∇ϕ₀_smoothed_y.data) * grid.grid.Δxᶜᵃᵃ) / sqrt(model.minus_∇ϕ₀_smoothed_x.data^2 + model.minus_∇ϕ₀_smoothed_y.data^2)
     
     # Limits on q are heuristic and chosen by Frank Pattyn for numerical stability.
     @. model.q.data = min(max(model.ψ_out.data / model.corfac.data, 0), 1e5)
