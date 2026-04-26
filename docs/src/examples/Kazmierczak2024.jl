@@ -51,46 +51,10 @@ display_flag = false
 
 fig_q = visualize_field(model.q; plot_title = "Distributed water flux q [10⁴ m² a⁻¹]", transpose_data = true, display_flag = display_flag, colorrange = (0, 10))
 
-# The effective pressure N [MPa].
-
-fig_N = visualize_field(state.N; plot_title = "Effective pressure N [MPa]", transpose_data = true, display_flag = display_flag, colorrange = (0, 10))
-
 # The water layer thickness W [m].
 
 fig_W = visualize_field(state.W; plot_title = "Water thickness W [m]", transpose_data = true, display_flag = display_flag, colorrange = extrema(filter(!isnan, state.W.data)))
 
-# Using a similar setup to the one above but with model.longcoupwater = 0.0, we can plot results for the whole of Antarctica.
+# The effective pressure N [MPa].
 
-function plot(f, r)
-    img = load("$(@__DIR__)/figures/Kaz24_yelmox_$(f)_$(r)km.png")
-    fig = CairoMakie.Figure()
-    ax = Axis(fig[1, 1], yreversed = true)
-    image!(ax, img')
-    ax.aspect = DataAspect()
-    hidedecorations!(ax)
-    return fig    
-end
-
-# Water flux [m²/s] 32km resolution.
-
-fig = plot("q", "32")
-
-# Water flux [m²/s] 16km resolution.
-
-fig = plot("q", "16")
-
-# Water thickness [m] 32km resolution.
-
-fig = plot("W", "32")
-
-# Water thickness [m] 16km resolution.
-
-fig = plot("W", "16")
-
-# Effective pressure [Pa] 32km resolution.
-
-fig = plot("N", "32")
-
-# Effective pressure [Pa] 16km resolution.
-
-fig = plot("N", "16")
+fig_N = visualize_field(state.N; plot_title = "Effective pressure N [MPa]", transpose_data = true, display_flag = display_flag, colorrange = (0, 10))

@@ -10,6 +10,7 @@ OGRectHydroGrid
 ```@docs
 AbstractHydroModel
 KazmierczakHydroModel
+HABHydroModel
 ```
 
 ## State
@@ -57,6 +58,7 @@ update_Q!
 ## Data Loading
 ```@docs
 load_Kazmierczak
+load_yelmox
 ```
 
 ## Utilities
@@ -71,4 +73,5 @@ Km2m
 ```@docs
 visualize_grid
 visualize_field
+mask_field
 ```
