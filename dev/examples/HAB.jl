@@ -46,23 +46,3 @@ state.N .= mask_field(state.N, state.mask, NaN);
 # Now we can visualize the resulting effective pressure N [MPa].
 
 fig_N = visualize_field(state.N; plot_title = "N", transpose_data = true, colorrange = (0, 10))
-
-# Using a similar setup to the one above but with model.longcoupwater = 0.0, we can plot results for the whole of Antarctica.
-
-function plot(f, r)
-    img = load("$(@__DIR__)/figures/HAB_yelmox_$(f)_$(r)km.png")
-    fig = CairoMakie.Figure()
-    ax = Axis(fig[1, 1], yreversed = true)
-    image!(ax, img')
-    ax.aspect = DataAspect()
-    hidedecorations!(ax)
-    return fig    
-end
-
-# Effective pressure 32km resolution.
-
-fig = plot("N", "32")
-
-# Effective pressure 16km resolution.
-
-fig = plot("N", "16")
