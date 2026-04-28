@@ -1,3 +1,10 @@
+"""
+    FastHydrology.jl
+
+A numerical model for subglacial water dynamics and effective pressure evolution.
+Based on the approach from Kazmierczak et al. 2024.
+"""
+
 using BenchmarkTools
 using SpecialFunctions
 using MAT
@@ -6,90 +13,125 @@ using Statistics
 using ColorSchemes
 import ColorSchemes.Colors
 using CairoMakie
-# using DSP
-# using WGLMakie
 
-function accumulate_ψ_out!(ψ_out, i, j, ṁ_over_ρ_w, Δ², minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, Nx, Ny) 
+# ==============================================================================
+# Constants
+# ==============================================================================
 
-    if ψ_out[i, j] ≥ 0.0 # we initialize all unvisited cells with -1.0 and q is positive semi-definite so if its positive then it has been visited and ψ_out calculated
-        return ψ_out[i, j]
-    end
+const WATER_DENSITY = 1000.0  # kg/m³
+const ICE_DENSITY = 917.0     # kg/m³
+const GRAVITY = 9.81          # m/s²
+const MANNING_EXPONENT = 3.0
+const LATENT_HEAT_WATER = 3.35e5  # J/kg
+const BED_THICKNESS = 0.1     # m
+const MANNING_COEFFICIENT_EXPONENT = (5/4)
+const BED_FRICTION_EXPONENT = (3/2)
+const FRICTION_FACTOR = 0.1
+const TILL_FACTOR = 1.1
+const CRITICAL_DISCHARGE = 1.0
+const INITIAL_CAVITY_HEIGHT = 0.1
+const COUPLING_LENGTH = 1e4   # m
+const LONG_COUPLING_WATER = 5.0
+const SECONDS_PER_YEAR = 3.154e7
+const MIN_PRESSURE_FRACTION = 0.02
 
-    ψ_out[i, j] = ṁ_over_ρ_w[i, j] * Δ²
+# ==============================================================================
+# Water Flux Calculation
+# ==============================================================================
 
+"""
+    accumulate_ψ_out!(ψ_out, i, j, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, Nx, Ny)
+
+Recursively accumulate water potential outflow from a cell using melt rate and
+pressure gradients. Cells are marked with -1.0 before visiting; positive values
+indicate computed cells (memoization).
+
+Arguments:
+- `ψ_out`: Output flux array (updated in-place)
+- `i, j`: Current cell indices
+- `ṁ_over_ρ_w`: Melt rate per water density
+- `Δ²`: Grid spacing squared
+- `∇ϕ`: Tuple of (minus_∇ϕ₀_x, minus_∇ϕ₀_y)
+- `abs_∇ϕ`: Absolute potential gradient magnitude
+- `Nx, Ny`: Grid dimensions
+"""
+function accumulate_ψ_out!(ψ_out, i, j, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, Nx, Ny)
+    # Already visited
+    ψ_out[i, j] ≥ 0.0 && return ψ_out[i, j]
+
+    # Initialize with melt source
+    ψ_out[i, j] = max(0.0, ṁ_over_ρ_w[i, j] * Δ²)
+
+    # Sum contributions from neighboring cells
     for (di, dj) in ((-1, 0), (1, 0), (0, -1), (0, 1))
+        ni, nj = i + di, j + dj
 
-            ni, nj = i+di, j+dj 
+        # Check bounds
+        (ni < 1 || ni > Nx || nj < 1 || nj > Ny) && continue
 
-            if (ni < 1) || (ni > Nx) || (nj < 1) || (nj > Ny) 
-                continue
-            end
+        # Calculate weight based on pressure gradient direction
+        minus_∇ϕ₀_x, minus_∇ϕ₀_y = ∇ϕ
+        
+        # Safety check for division by zero
+        abs_grad = abs_∇ϕ[ni, nj]
+        if abs_grad ≤ 1e-12
+            continue
+        end
+        
+        w = -(minus_∇ϕ₀_x[ni, nj] * di + minus_∇ϕ₀_y[ni, nj] * dj) / abs_grad
 
-            # TODO: Choose the correct calculation of weight
-            
-            # if (di > 0) || (dj > 0) 
-            #     w = -(minus_∇ϕ₀_x[i, j]*di + minus_∇ϕ₀_y[i, j]*dj) / abs_∇ϕ₀[i, j]
-            # else
-            #     w = -(minus_∇ϕ₀_x[ni, nj]*di + minus_∇ϕ₀_y[ni, nj]*dj) / abs_∇ϕ₀[ni, nj]
-            # end
-            
-            # w = -(minus_∇ϕ₀_x[i, j]*di + minus_∇ϕ₀_y[i, j]*dj) / abs_∇ϕ₀[i, j]
-            
-            w = -(minus_∇ϕ₀_x[ni, nj]*di + minus_∇ϕ₀_y[ni, nj]*dj) / abs_∇ϕ₀[ni, nj]
-
-            if w > 0
-                ψ_out[i, j] += accumulate_ψ_out!(ψ_out, ni, nj, ṁ_over_ρ_w, Δ², minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, Nx, Ny) * w
-            end
+        # Positive weight means flow from neighbor into current cell
+        if w > 0
+            ψ_out[i, j] += accumulate_ψ_out!(ψ_out, ni, nj, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, Nx, Ny) * w
+        end
     end
+
     return ψ_out[i, j]
 end
 
-function recursive_update_ψ_out!(ψ_out, ṁ_over_ρ_w, Δ², minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, active_indices, Nx, Ny)
-    
-    for I in active_indices
-        ψ_out[I] = -1.0
-    end
+"""
+    recursive_update_ψ_out!(ψ_out, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, mask, Nx, Ny)
 
-    for I in active_indices
-        i = I[1]
-        j = I[2]
-        accumulate_ψ_out!(ψ_out, i, j, ṁ_over_ρ_w, Δ², minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, Nx, Ny)
-    end
+Initialize and compute water potential outflow for all active cells.
+"""
+function recursive_update_ψ_out!(ψ_out, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, mask, Nx, Ny)
+    # Mark all active cells as unvisited
+    ψ_out[mask .== 1.0] .= -1.0
 
+    # Compute outflow from all active cells
+    for j in 1:Ny, i in 1:Nx
+        if mask[i, j] == 1.0
+            accumulate_ψ_out!(ψ_out, i, j, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ, Nx, Ny)
+        end
+    end
 end
 
+# ==============================================================================
+# Potential and Topography
+# ==============================================================================
+
 """
-    potential_filling!(ϕ₀, Nx, Ny, iterations=10) -> Return type
+    potential_filling!(ϕ₀, Nx, Ny; iterations=10)
 
-A hollow-filling algorithm must be applied to the topography to ensure 
-there are no sinks for the flux. Sinks are likely to be spurious features in the data, 
-due to processing and hence can be filled. Hollow filling is carried out iteratively 
-by assigning the ‘‘sink’’ cell the average of its four neighbours.
+Apply iterative hollow-filling to remove spurious sinks in topography.
+Uses Laplacian smoothing to raise local minima.
 
-# Arguments
-
-- `ϕ₀`: Argument description
-- `Nx`: Argument description
-- `Ny`: Argument description
-- `iterations`: Argument description
-    (**Default**: `10`)
+Arguments:
+- `ϕ₀`: Potential array (modified in-place)
+- `Nx, Ny`: Grid dimensions
+- `iterations`: Number of smoothing iterations (default: 10)
 """
-function potential_filling!(ϕ₀, Nx, Ny, iterations=10)
+function potential_filling!(ϕ₀, Nx, Ny; iterations=10)
+    pot_next = copy(ϕ₀)
 
-    pot_next = copy(ϕ₀) # to prevent directional bias, we use the old points for all the new points, hence we need a copy
-    for k in 1:iterations # one iteration might fill a small hole, but many can ensure even deep basins can be filled 
-        for j in 2:Ny-1
-            for i in 2:Nx-1
+    for _ in 1:iterations
+        for j in 2:Ny-1, i in 2:Nx-1
+            p = ϕ₀[i, j]
+            p_neighbors = (ϕ₀[i+1, j], ϕ₀[i-1, j], ϕ₀[i, j+1], ϕ₀[i, j-1])
 
-                p = ϕ₀[i, j]
-
-                # Cardinal neighbours of i, j
-                p1, p2 = ϕ₀[i+1, j], ϕ₀[i-1, j]
-                p3, p4 = ϕ₀[i, j+1], ϕ₀[i, j-1]
-                
-                if p < p1 && p < p2 && p < p3 && p < p4 # identify a local minimum where the gradient is effectively pointing inward from all sides
-                    pot_next[i, j] = (p1 + p2 + p3 + p4) / 4.0 # Laplacian smoothing step, replacing the pit with the average height of its neighbouring points effectively filling the hole
-                end
+            # Fill local minima with neighbor average
+            if all(p .< p_neighbors)
+                pot_next[i, j] = mean(p_neighbors)
             end
         end
         ϕ₀ .= pot_next
@@ -97,174 +139,178 @@ function potential_filling!(ϕ₀, Nx, Ny, iterations=10)
 end
 
 """
-    update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, ϕ₀, h, mask, Nx, Ny, Δ) -> Return type
+    update_potential!(ϕ₀, h, b, ρ_w, ρ_i, g)
 
-The distance over which subglacial water "feels" the ice pressure is proportional to the ice thickness h.
-
-The kernel weight square matrix follows the logic that the center has the highest weight, and the weight drops to zero at the edges.
-It follows the equation W(d) = max(0, 1 - d/(2*scale)), where d is the distance from the center and scale is the radius of influence of h on water.
-
-# Arguments
-
-- `minus_∇ϕ₀_x`: Argument description
-- `minus_∇ϕ₀_y`: Argument description
-- `abs_∇ϕ₀`: Argument description
-- `ϕ₀`: Argument description
-- `h`: Argument description
-- `mask`: Argument description
-- `Nx`: Argument description
-- `Ny`: Argument description
-- `Δ`: Argument description
+Compute hydraulic potential from ice thickness and bed topography.
+ϕ₀ = ρᵢ·g·h + ρw·g·b
 """
-function update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, ϕ₀, h, Nx, Ny, Δ, active_indices)
-
-    # TODO: Make efficient once established correct
-    # TODO: what boundary conditions should we apply? I think in your code you use periodic but that the end-points are anyway always kept to zero?
-    for j in 1:Ny, i in 1:Nx-1
-        minus_∇ϕ₀_x[i, j] = -(ϕ₀[i+1, j] - ϕ₀[i, j]) / (Δ)
-    end
-    minus_∇ϕ₀_x[end, :] = minus_∇ϕ₀_x[end-1, :] # the edge point gets the same gradient as the penultimate point - doesn't change results that much
-    
-    for j in 1:Ny-1, i in 1:Nx
-        minus_∇ϕ₀_y[i, j] = -(ϕ₀[i, j+1] - ϕ₀[i, j]) / (Δ)
-    end
-    minus_∇ϕ₀_y[:, end] = minus_∇ϕ₀_y[:, end-1] 
-
-    longcoupwater = 5.0
-    h_avg = max(mean(view(h, active_indices)), 10.0)
-    
-    scale = h_avg * longcoupwater * 2.0 # represents the radius of the influence zone of the ice thickness on water
-    width = 2.0 * scale
-    if width <= Δ
-        scale = Δ / 2.0 + 1.0
-    end
-    
-    maxlevel = 2 * round(Int, width / Δ - 0.5) + 1 # e.g. 9
-    # Filter radius boundary is the radius of the kernel, it calculates how many pixels extend from the center of that kernel window to its edge
-    # for example for 9 x 9 the frb = 4
-    frb = Int((maxlevel - 1) / 2) 
-
-    kernel = zeros(maxlevel, maxlevel)
-    for nj in 1:maxlevel, ni in 1:maxlevel
-        dist = sqrt((Δ * (ni - frb - 1))^2 + (Δ * (nj - frb - 1))^2) / scale
-        kernel[ni, nj] = max(0.0, 1.0 - dist / 2.0)
-    end
-    kernel ./= sum(kernel) # normalization is important as it ensures that the smoothing doesn't change the total amount of potential but only redistributes it
-
-    # This slides the cone kernel over every pixel of the gradient and each pixel's new value becomes a weighted average of its neighbors
-    minus_∇ϕ₀_x .= imfilter(minus_∇ϕ₀_x, centered(kernel), "reflect")
-    minus_∇ϕ₀_y .= imfilter(minus_∇ϕ₀_y, centered(kernel), "reflect")
-
-    @. abs_∇ϕ₀ = abs(minus_∇ϕ₀_x) + abs(minus_∇ϕ₀_y)
-end
-
 function update_potential!(ϕ₀, h, b, ρ_w, ρ_i, g)
     @. ϕ₀ = ρ_i * g * h + ρ_w * g * b
 end
 
-function initialize_κ(b, Nx, Ny, type = "hard")
+"""
+    update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, 
+                                        ϕ₀, h, Nx, Ny, Δ, mask)
 
-    if type == "hard"
-        κ = zeros(Nx, Ny)
-    elseif type == "soft"
-        κ = ones(Nx, Ny)
-    else
-        κ = zeros(Nx, Ny)
-        flag = b .< -1000
-        κ[flag] .= 1.0
+Compute smoothed pressure gradients using a cone-shaped kernel weighted by
+ice thickness. Smoothing radius is proportional to mean ice thickness.
+"""
+function update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀,
+                                             ϕ₀, h, Nx, Ny, Δ, mask)
+    # Compute unsmoothed gradients
+    for j in 1:Ny, i in 2:Nx-1
+        minus_∇ϕ₀_x[i, j] = -(ϕ₀[i+1, j] - ϕ₀[i-1, j]) / (2 * Δ)
     end
+    minus_∇ϕ₀_x[1, :] .= minus_∇ϕ₀_x[2, :]
+    minus_∇ϕ₀_x[end, :] .= minus_∇ϕ₀_x[end-1, :]
 
-    return κ
+    for j in 2:Ny-1, i in 1:Nx
+        minus_∇ϕ₀_y[i, j] = -(ϕ₀[i, j+1] - ϕ₀[i, j-1]) / (2 * Δ)
+    end
+    minus_∇ϕ₀_y[:, 1] .= minus_∇ϕ₀_y[:, 2]
+    minus_∇ϕ₀_y[:, end] .= minus_∇ϕ₀_y[:, end-1]
 
+    # Determine smoothing kernel based on ice thickness
+    h_avg = max(mean(h[mask .== 1.0]), 10.0)
+    scale = h_avg * LONG_COUPLING_WATER * 2.0
+    width = 2.0 * scale
+    width ≤ Δ && (scale = Δ / 2.0 + 1.0)
+
+    kernel_size = 2 * round(Int, width / Δ - 0.5) + 1
+    frb = Int((kernel_size - 1) / 2)
+
+    # Create cone kernel: W(d) = max(0, 1 - d/(2*scale))
+    kernel = zeros(kernel_size, kernel_size)
+    for nj in 1:kernel_size, ni in 1:kernel_size
+        dist = sqrt((Δ * (ni - frb - 1))^2 + (Δ * (nj - frb - 1))^2) / scale
+        kernel[ni, nj] = max(0.0, 1.0 - dist / 2.0)
+    end
+    kernel ./= sum(kernel)  # Normalize to preserve total potential
+
+    # Apply smoothing filter
+    minus_∇ϕ₀_x .= imfilter(minus_∇ϕ₀_x, centered(kernel), "reflect")
+    minus_∇ϕ₀_y .= imfilter(minus_∇ϕ₀_y, centered(kernel), "reflect")
+
+    # Magnitude of gradient
+    @. abs_∇ϕ₀ = abs(minus_∇ϕ₀_x) + abs(minus_∇ϕ₀_y)
 end
 
-function update_H!(H, H_hard, H_soft, S_inf, H_0, F_till, Q, Q_c, κ)
-    @. H_hard = sqrt(S_inf)
-    @. H_soft = H_0 + (sqrt(S_inf)/F_till - H_0) * exp(-Q/Q_c)
-    @. H = (1 - κ) * H_hard + κ * H_soft
+# ==============================================================================
+# Effective Pressure and Cavity Height
+# ==============================================================================
+
+"""
+    initialize_κ(b, Nx, Ny; type="hard")
+
+Initialize substrate type indicator κ.
+- "hard": κ = 0 everywhere (rigid bed)
+- "soft": κ = 1 everywhere (deformable bed)
+- "mixed": κ = 1 for deep areas (b < -1000 m), 0 elsewhere
+"""
+function initialize_κ(b, Nx, Ny; type="hard")
+    if type == "hard"
+        return zeros(Nx, Ny)
+    elseif type == "soft"
+        return ones(Nx, Ny)
+    else  # "mixed"
+        κ = zeros(Nx, Ny)
+        κ[b .< -1000] .= 1.0
+        return κ
+    end
 end
 
-function update_S_inf!(S_inf, K, α, β, abs_∇ϕ₀, Q)
-    @. S_inf = K^(-1/α) * abs_∇ϕ₀^((1-β)/α) * Q^(1/α) 
-end
+"""
+    update_Po!(Po, ρ_i, g, h)
 
+Compute overburden pressure from ice thickness.
+Po = max(ρᵢ·g·h, 1e5 Pa)
+"""
 function update_Po!(Po, ρ_i, g, h)
     @. Po = max(ρ_i * g * h, 1e5)
 end
 
-function update_N_inf!(N_inf, H, S_inf, ρ_i, L_w, abs_v_b, h_b, Q, abs_∇ϕ₀, n, A, Po)
-    # TODO: why do we set these min and max limits?
-    @. N_inf = max(min(((H/S_inf)^2*((ρ_i*L_w*abs_v_b*h_b + Q*abs_∇ϕ₀)/(2.0*n^(-n)*ρ_i*L_w*A)))^(1.0/n), Po), 0.02*Po)
+"""
+    update_S_inf!(S_inf, K, α, β, abs_∇ϕ₀, Q)
+
+Compute cavity opening rate (width * height) at equilibrium.
+S∞ = K^(-1/α) · (∇ϕ)^((1-β)/α) · Q^(1/α)
+"""
+function update_S_inf!(S_inf, K, α, β, abs_∇ϕ₀, Q)
+    @. S_inf = K^(-1 / α) * abs_∇ϕ₀^((1 - β) / α) * Q^(1 / α)
+    # Ensure S_inf is non-negative and has minimum value for stability
+    @. S_inf = max(S_inf, 1e-12)
 end
 
 """
-    update_N!(N, N_inf, ϕ₀) -> Return type
+    update_H!(H, H_hard, H_soft, S_inf, H_0, F_till, Q, Q_c, κ)
 
-1−erfc(x)=erf(x) this is how they have it in the Kazmierczak et al 2024 code, probably for numerical stability
+Compute cavity height as weighted blend of hard-bed and soft-bed solutions.
+"""
+function update_H!(H, H_hard, H_soft, S_inf, H_0, F_till, Q, Q_c, κ)
+    @. H_hard = sqrt(S_inf)
+    @. H_soft = H_0 + (sqrt(S_inf) / F_till - H_0) * exp(-Q / Q_c)
+    @. H = (1 - κ) * H_hard + κ * H_soft
+    # Ensure H is non-negative
+    @. H = max(H, 1e-12)
+end
 
-# Arguments
+"""
+    update_N_inf!(N_inf, H, S_inf, ρ_i, L_w, abs_v_b, h_b, Q, abs_∇ϕ₀, n, A, Po)
 
-- `N`: Argument description
-- `N_inf`: Argument description
-- `ϕ₀`: Argument description
+Compute equilibrium effective pressure using basal velocity and meltwater flux.
+Bounded by [0.02·Po, Po].
+"""
+function update_N_inf!(N_inf, H, S_inf, ρ_i, L_w, abs_v_b, h_b, Q, abs_∇ϕ₀, n, A, Po)
+    numerator = ρ_i * L_w * abs_v_b * h_b .+ Q .* abs_∇ϕ₀
+    denominator = 2.0 * n^(-n) * ρ_i * L_w * A
+    
+    # Avoid division by zero: ensure S_inf > 0
+    cavity_ratio = @. H / max(S_inf, 1e-12)
+
+    @. N_inf = ((cavity_ratio^2 * numerator / denominator)^(1.0 / n))
+    @. N_inf = max(min(N_inf, Po), MIN_PRESSURE_FRACTION * Po)
+end
+
+"""
+    update_N!(N, N_inf, ϕ₀)
+
+Compute effective pressure from equilibrium pressure and potential.
+Uses erf(x) for numerical stability.
+N = erf(√π·ϕ₀/(2·N∞)) · N∞
 """
 function update_N!(N, N_inf, ϕ₀)
-    @. N = (1 - erfc(sqrt(π)*ϕ₀/(2*N_inf))) * N_inf 
+    @. N = max(0.0, erf(sqrt(π) * ϕ₀ / (2 * N_inf)) * N_inf)
 end
 
-function plot_3d_flux(b, q)
-    
-    fig = Figure(size = (3000, 3000))
-    
-    ax = Axis3(fig[1, 1], 
-        title = "Subglacial Water Flux over Bed Topography",
-        aspect = (1, 1, 0.2),
-        perspectiveness = 0.5,
-        elevation = 0.5,
-        azimuth = 1.4
-    )
+# ==============================================================================
+# Main Simulation
+# ==============================================================================
 
-    hidedecorations!(ax)
-    hidespines!(ax)
-    ax.yzpanelvisible = false
-    ax.xzpanelvisible = false
-    ax.xypanelvisible = false
+"""
+    main(data_path; visualize=true)
 
-    plt = surface!(ax, b', 
-        color = q' .* 3.154e7 ./ 1e4, 
-        colormap = Reverse(:RdBu), 
-        shading = true, 
-        nan_color = :transparent,
-    )
-
-    Colorbar(fig[1, 2], plt, label = "q_w [m²/a]")
-    
-    return fig
-end
-
-function main()
-
-    data_path = "/Users/takisangelides/Documents/Post-doc/Kazmierczak et al 2024 Code/results/thwaites_hydro/output/THWAITES2km_m3_HARD_toto.mat"
+Run subglacial hydrology model on Thwaites Glacier data.
+Computes water flux and effective pressure.
+"""
+function main(data_path::String; visualize=true)
+    # Load data
     data = matread(data_path)
-
     Nx, Ny = size(data["H"])
     Δ = 2000.0
     Δ² = Δ^2
+
+    # Extract fields
     mask = data["MASKo"]
-    active_indices = findall(mask .== 1)
-    inactive_indices = findall(mask .!= 1)
-    ṁ_over_ρ_w = data["Bmelt"] ./ 3.154e7
-    h = data["H"]
+    ṁ_over_ρ_w = data["Bmelt"] ./ SECONDS_PER_YEAR
+    h = copy(data["H"])
     b = data["B"]
     abs_v_b = data["ub"]
-    
-    ρ_w, ρ_i, g = 1000.0, 917.0, 9.81
-    n, L_w, h_b = 3.0, 3.35e5, 0.1
     A = data["A"]
-    α, β, f = 5/4, 3/2, 0.1
-    K = (2/π)^(0.25) * sqrt((π + 2) / (ρ_w * f))
-    F_till, Q_c, H_0, l_c = 1.1, 1.0, 0.1, 1e4
 
+    # Manning-Strickler coefficient
+    K = (2 / π)^0.25 * sqrt((π + 2) / (WATER_DENSITY * FRICTION_FACTOR))
+
+    # Initialize fields
     ϕ₀ = zeros(Nx, Ny)
     minus_∇ϕ₀_x = zeros(Nx, Ny)
     minus_∇ϕ₀_y = zeros(Nx, Ny)
@@ -278,118 +324,74 @@ function main()
     H = zeros(Nx, Ny)
     N_inf = zeros(Nx, Ny)
     N = zeros(Nx, Ny)
-    κ = initialize_κ(b, Nx, Ny)
     Po = zeros(Nx, Ny)
+    κ = initialize_κ(b, Nx, Ny)
 
-    # Distributed water flux
+    # ========== Compute Distributed Water Flux ==========
+    update_potential!(ϕ₀, h, b, WATER_DENSITY, ICE_DENSITY, GRAVITY)
+    potential_filling!(ϕ₀, Nx, Ny; iterations=10)
+    @. h = (ϕ₀ - WATER_DENSITY * GRAVITY * b) / (ICE_DENSITY * GRAVITY)
 
-    update_potential!(ϕ₀, h, b, ρ_w, ρ_i, g)
-    
-    potential_filling!(ϕ₀, Nx, Ny, 10) 
+    update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀,
+                                         ϕ₀, h, Nx, Ny, Δ, mask)
 
-    @. h = (ϕ₀ - ρ_w*g*b)/(ρ_i*g) # correction to h from potential filling
+    ∇ϕ = (minus_∇ϕ₀_x, minus_∇ϕ₀_y)
+    recursive_update_ψ_out!(ψ_out, ṁ_over_ρ_w, Δ², ∇ϕ, abs_∇ϕ₀, mask, Nx, Ny)
 
-    update_potential_gradients_smoothed!(minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, ϕ₀, h, Nx, Ny, Δ, active_indices)
-
-    recursive_update_ψ_out!(ψ_out, ṁ_over_ρ_w, Δ², minus_∇ϕ₀_x, minus_∇ϕ₀_y, abs_∇ϕ₀, active_indices, Nx, Ny)
-
-    corfac = @. abs_∇ϕ₀ / sqrt(minus_∇ϕ₀_x^2 + minus_∇ϕ₀_y^2)
-    # Distributed water flux - dividing by Δ is heuristic to go from scalar volumetric flux out of the cell ψ_out
-    # to flux density q with units m²/s and its coming from https://doi.org/10.3189/S0260305500013215 W. F. Budd and R. C. Warner 1996
-    @. q = min(max(ψ_out / (corfac * Δ), 0), 1e5)
-
-    # Effective pressure
-
-    @. ϕ₀ = ρ_i * g * h + ρ_w * g * b
-    for j in 1:Ny, i in 1:Nx-1
-        minus_∇ϕ₀_x[i, j] = -(ϕ₀[i+1, j] - ϕ₀[i, j]) / (Δ)
+    # Correct for coordinate system - avoid division by zero
+    corfac = zeros(Nx, Ny)
+    for j in 1:Ny, i in 1:Nx
+        grad_mag = sqrt(minus_∇ϕ₀_x[i, j]^2 + minus_∇ϕ₀_y[i, j]^2)
+        if grad_mag > 1e-12
+            corfac[i, j] = abs_∇ϕ₀[i, j] / grad_mag
+        else
+            corfac[i, j] = 1.0
+        end
     end
-    minus_∇ϕ₀_x[end, :] = minus_∇ϕ₀_x[end-1, :] # the edge point gets the same gradient as the penultimate point - doesn't change results that much
-    for j in 1:Ny-1, i in 1:Nx
-        minus_∇ϕ₀_y[i, j] = -(ϕ₀[i, j+1] - ϕ₀[i, j]) / (Δ)
+    @. q = min(max(ψ_out / (corfac * Δ), 0.0), 1e5)
+
+    # ========== Compute Effective Pressure ==========
+    @. ϕ₀ = ICE_DENSITY * GRAVITY * h + WATER_DENSITY * GRAVITY * b
+
+    # Recompute gradients without smoothing
+    for j in 1:Ny, i in 2:Nx-1
+        minus_∇ϕ₀_x[i, j] = -(ϕ₀[i+1, j] - ϕ₀[i-1, j]) / (2 * Δ)
     end
-    minus_∇ϕ₀_y[:, end] = minus_∇ϕ₀_y[:, end-1] 
+    minus_∇ϕ₀_x[1, :] .= minus_∇ϕ₀_x[2, :]
+    minus_∇ϕ₀_x[end, :] .= minus_∇ϕ₀_x[end-1, :]
+
+    for j in 2:Ny-1, i in 1:Nx
+        minus_∇ϕ₀_y[i, j] = -(ϕ₀[i, j+1] - ϕ₀[i, j-1]) / (2 * Δ)
+    end
+    minus_∇ϕ₀_y[:, 1] .= minus_∇ϕ₀_y[:, 2]
+    minus_∇ϕ₀_y[:, end] .= minus_∇ϕ₀_y[:, end-1]
+
     @. abs_∇ϕ₀ = sqrt(minus_∇ϕ₀_x^2 + minus_∇ϕ₀_y^2)
 
-    @. Q = q * l_c # volumetric water flux in a single channel
-    update_S_inf!(S_inf, K, α, β, abs_∇ϕ₀, Q)
-    update_H!(H, H_hard, H_soft, S_inf, H_0, F_till, Q, Q_c, κ)
-    update_Po!(Po, ρ_i, g, h)    
-    update_N_inf!(N_inf, H, S_inf, ρ_i, L_w, abs_v_b, h_b, Q, abs_∇ϕ₀, n, A, Po)
+    # Compute effective pressure
+    @. Q = q * COUPLING_LENGTH
+    update_S_inf!(S_inf, K, MANNING_COEFFICIENT_EXPONENT, BED_FRICTION_EXPONENT, abs_∇ϕ₀, Q)
+    update_H!(H, H_hard, H_soft, S_inf, INITIAL_CAVITY_HEIGHT, TILL_FACTOR, Q, CRITICAL_DISCHARGE, κ)
+    update_Po!(Po, ICE_DENSITY, GRAVITY, h)
+    update_N_inf!(N_inf, H, S_inf, ICE_DENSITY, LATENT_HEAT_WATER, abs_v_b, BED_THICKNESS,
+                  Q, abs_∇ϕ₀, MANNING_EXPONENT, A, Po)
     update_N!(N, N_inf, ϕ₀)
 
-    # Plotting
+    # Convert to annual flux (m²/year)
+    @. q *= 60^2 * 24 * 365.25 / 1e4
+    q[mask .!= 1.0] .= NaN
 
-    for I in inactive_indices
-        b[I] = h[I] = Q[I] = N[I] = κ[I] = abs_v_b[I] = q[I] = abs_∇ϕ₀[I] = NaN
+    # Visualize
+    if visualize
+        display(heatmap(q', colormap=Reverse(:RdBu), colorrange=(0, 10)))
     end
 
-    parula_custom = ColorScheme([Colors.RGB(62/255, 39/255, 169/255), Colors.RGB(53/255, 121/255, 254/255), Colors.RGB(16/255, 191/255, 187/255), Colors.RGB(200/255, 194/255, 41/255), Colors.RGB(250/255, 252/255, 21/255)])
-    light_gray = Colors.RGB(0.95, 0.95, 0.95)
-
-    # WGLMakie.activate!()    
-    # fig_3d = plot_3d_flux(b, q)
-    # display(fig_3d)
-
-    # CairoMakie.activate!()    
-    # fig = Figure(size = (1000, 800))
-
-    # ax1 = Axis(fig[1, 1], title = "Bed Elevation b", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm1 = Makie.heatmap!(ax1, b'; colormap = :oleron, colorrange = (-2000, 2000))
-    # Colorbar(fig[1, 2], hm1, label = "b [m]")
-
-    # ax2 = Axis(fig[1, 3], title = "Ice Thickness h", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm2 = Makie.heatmap!(ax2, h'; colormap = parula_custom, colorrange = (0, 3000))
-    # Colorbar(fig[1, 4], hm2, label = "h [m]")
-
-    # ax3 = Axis(fig[1, 5], title = "Absolute basal velocity", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm3 = Makie.heatmap!(ax3, log10.(abs_v_b'); colormap = Reverse(:RdBu), colorrange = (0, 3))
-    # Colorbar(fig[1, 6], hm3, label = "log₁₀(v_b) [m/s]")
-
-    # ax4 = Axis(fig[2, 1], title = "Bed rheology κ", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm4 = Makie.heatmap!(ax4, κ')
-    # Colorbar(fig[2, 2], hm4, label = "κ")
-
-    # ax5 = Axis(fig[2, 3], title = "Effective Pressure N", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm5 = Makie.heatmap!(ax5, N' .* 1e-6; colormap = Reverse(:RdBu), colorrange = (0, 10))
-    # Colorbar(fig[2, 4], hm5, label = "N [MPa]")
-
-    # ax6 = Axis(fig[2, 5], title = "Distributed water flux", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm6 = Makie.heatmap!(ax6, q' .* 3.154e7 ./ 1e4; colormap = Reverse(:RdBu)) #, colorrange = (0, 10))
-    # Colorbar(fig[2, 6], hm6, label = "q_w [10⁴ m²/a]")
-
-    # colgap!(fig.layout, 15)
-    # display(fig)
-
-    # CairoMakie.activate!()    
-    # fig = Figure(size = (1000, 800))
-
-    # ax5 = Axis(fig[1, 1], title = "Effective Pressure N", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm5 = Makie.heatmap!(ax5, N' .* 1e-6; colormap = Reverse(:RdBu), colorrange = (0, 10))
-    # Colorbar(fig[1, 2], hm5, label = "N [MPa]")
-
-    # ax6 = Axis(fig[1, 3], title = "Distributed water flux", aspect = DataAspect(), xgridvisible = false, ygridvisible = false, backgroundcolor = light_gray)
-    # hm6 = Makie.heatmap!(ax6, q' .* 3.154e7 ./ 1e4; colormap = Reverse(:RdBu)) #, colorrange = (0, 10))
-    # Colorbar(fig[1, 4], hm6, label = "q_w [10⁴ m²/a]")
-
-    # colgap!(fig.layout, 15)
-    # display(fig)
-
-    # CairoMakie.activate!()    
-    fig = Figure(size = (900, 700))
-    ax1 = Axis(fig[1, 1], xlabel = "x", ylabel = "y", title = "q old code", aspect = DataAspect())
-    hm1 = heatmap!(ax1, q' .* 3.154e7 ./ 1e4; colormap = Reverse(:RdBu), colorrange = (0, 10))
-    Colorbar(fig[1, 2], hm1)
-
-    # fig = Figure(size = (900, 700))
-    # ax1 = Axis(fig[1, 1], xlabel = "x", ylabel = "y", title = "N old code", aspect = DataAspect())
-    # hm1 = heatmap!(ax1, N' ./ 1e6; colormap = Reverse(:RdBu), colorrange = (0, 10))
-    # Colorbar(fig[1, 2], hm1)
-
-    display(fig)
-
-    return nothing
-    
+    return (; q, N, h, mask)
 end
 
-main()
+# ==============================================================================
+# Entry point
+# ==============================================================================
+
+data_path = "/Users/taange001/Documents/Coding/FastHydrology.jl/local_experiments/input/Kazmierczak2024/THWAITES2km_m3_HAB_toto.mat"
+main(data_path)
