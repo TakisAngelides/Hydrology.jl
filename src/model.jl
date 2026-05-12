@@ -20,25 +20,26 @@ the calculations of water flux, we make the assumption that on the grid we have 
 mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroModel
 
     # Model constants 
-    ρ_w           ::T  # Density of fresh water [kg/m³]
-    ρ_i           ::T  # Density of ice [kg/m³]
-    g             ::T  # Gravitational acceleration [m/s²]
-    L_w           ::T  # Latent heat of fusion for ice [J/kg]
-    n             ::T  # Glen's flow law exponent (typically 3)
-    h_b           ::T  # Typical bed obstacle height [m]
-    α             ::T  # Power law exponent for hydraulic transmissivity (m-scale)
-    β             ::T  # Power law exponent for hydraulic transmissivity (opening/closing)
-    f             ::T  # Darcy-Weisbach friction factor
-    F_till        ::T  # Till compressibility/yield factor for soft-bed transition
-    Q_c           ::T  # Threshold discharge for laminar-to-turbulent transition [m³/s]
-    H_0           ::T  # Thickness of canals for soft bed deformation [m]
-    l_c           ::T  # Distance between conduits [m]
-    K             ::T  # Conductivity coefficient in Darcy–Weisbach relation
-    η_w           ::T  # Dynamic viscosity of water [Pa·s]
-    Wmin          ::T  # Minimum subglacial water layer thickness [m]
-    Wmax          ::T  # Maximum subglacial water layer thickness [m]
-    longcoupwater ::T  # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients
-    sigmat        ::T  # Effective pressure lower bound as fraction of overburden pressure
+    ρ_w           ::T    # Density of fresh water [kg/m³]
+    ρ_i           ::T    # Density of ice [kg/m³]
+    g             ::T    # Gravitational acceleration [m/s²]
+    L_w           ::T    # Latent heat of fusion for ice [J/kg]
+    n             ::T    # Glen's flow law exponent (typically 3)
+    h_b           ::T    # Typical bed obstacle height [m]
+    α             ::T    # Power law exponent for hydraulic transmissivity (m-scale)
+    β             ::T    # Power law exponent for hydraulic transmissivity (opening/closing)
+    f             ::T    # Darcy-Weisbach friction factor
+    F_till        ::T    # Till compressibility/yield factor for soft-bed transition
+    Q_c           ::T    # Threshold discharge for laminar-to-turbulent transition [m³/s]
+    H_0           ::T    # Thickness of canals for soft bed deformation [m]
+    l_c           ::T    # Distance between conduits [m]
+    K             ::T    # Conductivity coefficient in Darcy–Weisbach relation
+    η_w           ::T    # Dynamic viscosity of water [Pa·s]
+    Wmin          ::T    # Minimum subglacial water layer thickness [m]
+    Wmax          ::T    # Maximum subglacial water layer thickness [m]
+    longcoupwater ::T    # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients
+    sigmat        ::T    # Effective pressure lower bound as fraction of overburden pressure
+    fill_iters    ::Int  # How many iterations to perform for the filling of local minima of the geometric potential ϕ₀
 
     # Geometric potential 
     ϕ₀                   ::A  # Geometric potential [Pa]
@@ -110,7 +111,8 @@ function KazmierczakHydroModel(
     Wmin   = 1e-8,
     Wmax   = 0.015,
     longcoupwater = 5.0,
-    sigmat = 0.02
+    sigmat = 0.02,
+    fill_iters = 10
 )
 
     expected_size = (grid.grid.Nx, grid.grid.Ny)
@@ -141,6 +143,7 @@ function KazmierczakHydroModel(
     Wmax = T(Wmax) # maximum value for water layer thickness W (value from KORI-ULB model)
     longcoupwater = T(longcoupwater) # Longitudinal coupling factor for the stress-gradient coupling smoothing of the geometric potential gradients (value from KORI-ULB model)
     sigmat = T(sigmat) # Effective pressure lower bound as fraction of overburden pressure
+    fill_iters = Int(fill_iters)
 
     # Geometric potential
     ϕ₀                   = set!(CenterField(grid.grid), 0.0)  # Geometric potential [Pa]
@@ -171,7 +174,7 @@ function KazmierczakHydroModel(
     Po      = set!(CenterField(grid.grid), 0.0)          # Ice overburden pressure
     
     return KazmierczakHydroModel(
-        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater, sigmat,
+        ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater, sigmat, fill_iters,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
         ṁ_over_ρ_w, ψ_out, corfac, q,

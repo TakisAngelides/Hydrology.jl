@@ -7,7 +7,7 @@ function visualize_field(x, y, data;
         plot_title = "", 
         transpose_data = false, 
         colorrange = extrema(filter(!isnan, data)), 
-        display_flag = false, 
+        display_flag = true, 
         colormap = Reverse(:RdBu), 
         colorscale = identity,
         savefig_path = nothing

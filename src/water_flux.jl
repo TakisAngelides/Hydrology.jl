@@ -82,7 +82,7 @@ $(TYPEDSIGNATURES)
 
 Updates ϕ₀ and consequently also updates h to reflect changes in ϕ₀. It fills the local minima of ϕ₀ to avoid water getting stuck in there.
 """
-function potential_filling!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState; iterations = 10)
+function potential_filling!(model::KazmierczakHydroModel, grid::OGRectHydroGrid, state::HydroState)
 
     ϕ₀ = model.ϕ₀
     ϕ₀_tmp = model.ϕ₀_tmp
@@ -90,7 +90,7 @@ function potential_filling!(model::KazmierczakHydroModel, grid::OGRectHydroGrid,
     ϕ₀_tmp .= ϕ₀ # update ϕ₀_tmp to match ϕ₀ before we start the potential filling
     fill_halo!(ϕ₀_tmp, grid)
 
-    for _ in 1:iterations # one iteration might fill a small hole, but many can ensure even deep basins can be filled 
+    for _ in 1:model.fill_iters # one iteration might fill a small hole, but many can ensure even deep basins can be filled 
         @inbounds for j in 1:grid.grid.Ny
             for i in 1:grid.grid.Nx
 
@@ -212,7 +212,7 @@ function accumulate_ψ_out!(model::KazmierczakHydroModel, i, j, grid::OGRectHydr
     end
 
     # See Eq. (6) from Le Brocq et al 2009 (https://doi.org/10.3189/002214309790152564) for this udpate on ψ_out. We ensure that ψ_out stays non-negative, because ṁ can get negative.
-    model.ψ_out[i, j] = max(0.0, model.ṁ_over_ρ_w[i, j] * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ) # assumes that in each dimension the grid cell center spacing is uniform 
+    model.ψ_out[i, j] = max(0.0, model.ṁ_over_ρ_w[i, j]) * grid.grid.Δxᶜᵃᵃ * grid.grid.Δyᵃᶜᵃ # assumes that in each dimension the grid cell center spacing is uniform 
 
     for (di, dj) in ((-1, 0), (1, 0), (0, -1), (0, 1))
 
