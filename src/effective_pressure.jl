@@ -41,7 +41,7 @@ then interpolating based on the bed heterogeneity indicator κ.
 """
 function update_H!(model::KazmierczakHydroModel, grid::OGRectHydroGrid)
     @. model.H_hard = sqrt(model.S_inf)
-    @. model.H_soft = model.H_0 + (sqrt(model.S_inf) / model.F_till - model.H_0) * exp(-model.Q / model.Q_c)
+    @. model.H_soft.data = max(0.0, model.H_0 + (sqrt(model.S_inf.data) / model.F_till - model.H_0) * exp(-model.Q.data / model.Q_c))
     @. model.H = (1 - model.κ) * model.H_hard + model.κ * model.H_soft
     fill_halo!(model.H, grid)
     return nothing
@@ -71,8 +71,8 @@ function update_N_inf!(model::KazmierczakHydroModel, grid::OGRectHydroGrid)
     # Lower limit of model.sigmat * Po ≤ N_inf ≤ Po comes from Eq. (20) of Beuler and van Pelt 2015, where e.g. sigmat = 0.02
     @. model.N_inf.data = min(max(
         ((model.H.data/model.S_inf.data)^2*((model.ρ_i*model.L_w*model.abs_v_b.data*model.h_b + model.Q.data*model.abs_∇ϕ₀.data)/(2.0*model.n^(-model.n)*model.ρ_i*model.L_w*model.A_visc.data)))^(1.0/model.n),
-        model.sigmat * model.Po.data),
-        model.Po.data)
+        model.sigmat * model.Po.data), # min value of N_inf = sigmat * ice overburden pressure, where sigmat is a small fraction e.g. 0.02
+        model.Po.data) # max value of N_inf = ice overburden pressure
     @. model.N_inf.data[model.S_inf.data .== 0.0] .= model.Po[model.S_inf.data .== 0.0] # if the cross-sectional area of a conduit is zero then the effective pressure is equal to the ice overburden pressure
     fill_halo!(model.N_inf, grid)
     return nothing
