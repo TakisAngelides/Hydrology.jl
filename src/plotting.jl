@@ -91,10 +91,10 @@ function visualize_grid(grid::OGRectHydroGrid)
     Ny = length(yc)
 
     quadrants = [
-        (1:5, Ny-5:Ny),   # top-left
-        (Nx-5:Nx, Ny-5:Ny), # top-right
+        (1:5, Ny-4:Ny),   # top-left
+        (Nx-4:Nx, Ny-4:Ny), # top-right
         (1:5, 1:5),      # bottom-left
-        (Nx-5:Nx, 1:5)   # bottom-right
+        (Nx-4:Nx, 1:5)   # bottom-right
     ]
 
     titles = ["top left grid corner", "top right grid corner", "bottom left grid corner", "bottom right grid corner"]

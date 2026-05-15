@@ -110,7 +110,9 @@ function potential_filling!(model::KazmierczakHydroModel, grid::OGRectHydroGrid,
         fill_halo!(ϕ₀, grid)
     end
 
-    @. state.h = (model.ϕ₀ - model.ρ_w * model.g * state.b)/(model.ρ_i * model.g) # correction to h from potential filling
+    # correction to h from potential filling stored in the ice thickness field of the model rather than the hydrology state since we don't want to affect the other calculations like effective pressure
+    # this is essentially only used in the update_smoothed_potential_gradients! function to calculate the average grounded ice thickness
+    @. model.h = (model.ϕ₀ - model.ρ_w * model.g * state.b)/(model.ρ_i * model.g) 
 
     return nothing
 
@@ -155,7 +157,7 @@ function update_smoothed_potential_gradients!(model::KazmierczakHydroModel, grid
         return nothing
     else
         # Average grounded-ice ice thickness
-        h_active = @views interior(state.h, :, :, 1)[state.mask .== 1] # this allocates memory and we can avoid that with a for loop but the current method is faster
+        h_active = @views interior(model.h, :, :, 1)[state.mask .== 1] # this allocates memory and we can avoid that with a for loop but the current method is faster
         h_avg = max(mean(h_active), 10.0) # see Cuffey & Paterson 2010 end of sec. 8.7.2 for the maximum value
         
         # Radius of influence

@@ -52,6 +52,7 @@ mutable struct KazmierczakHydroModel{T <: AbstractFloat, A} <: AbstractHydroMode
     abs_∇ϕ₀_smoothed     ::A  # Magnitude of the smoothed gradient of the geometric potential [Pa/m]
 
     # Water flux 
+    h          ::A  # ice thickness after geometric potential filling serves as a temporary storage [m]
     ṁ_over_ρ_w ::A  # basal melt rate per unit area / ρ_w [m/s]
     ψ_out      ::A  # Integrated scalar water flux [m³/s]
     corfac     ::A  # Correction factor to go from ψ_out to q
@@ -99,7 +100,7 @@ function KazmierczakHydroModel(
     g      = 9.81,
     L_w    = 3.34e5,
     n      = 3.0,
-    h_b    = 0.1,
+    h_b    = 0.1, # bedrock bump height
     α      = 5/4,
     β      = 3/2,
     f      = 0.1,
@@ -156,6 +157,7 @@ function KazmierczakHydroModel(
     abs_∇ϕ₀_smoothed     = set!(CenterField(grid.grid), 0.0)  # |smoothed ∇ϕ₀| [Pa/m]
     
     # Water flux
+    h          = set!(CenterField(grid.grid), 0.0)  # Ice thickness after geometric potential filling, serves as a temporary storage field [m]
     ṁ_over_ρ_w = set!(CenterField(grid.grid), ṁ_over_ρ_w_in) # Melt rate per unit area / ρ_w [m/s]
     ψ_out      = set!(CenterField(grid.grid), 0.0)  # Integrated scalar water flux [m^2/s]
     corfac     = set!(CenterField(grid.grid), 0.0)  # Correction factor from ψ_out to q
@@ -177,7 +179,7 @@ function KazmierczakHydroModel(
         ρ_w, ρ_i, g, L_w, n, h_b, α, β, f, F_till, Q_c, H_0, l_c, K, η_w, Wmin, Wmax, longcoupwater, sigmat, fill_iters,
         ϕ₀, ϕ₀_tmp, minus_∇ϕ₀_x, minus_∇ϕ₀_y,
         abs_∇ϕ₀, minus_∇ϕ₀_smoothed_x, minus_∇ϕ₀_smoothed_y, abs_∇ϕ₀_smoothed,
-        ṁ_over_ρ_w, ψ_out, corfac, q,
+        h, ṁ_over_ρ_w, ψ_out, corfac, q,
         Q, κ, abs_v_b, A_visc, S_inf, H_hard, H_soft, H, N_inf, Po
     )
 
